@@ -1,0 +1,774 @@
+/* =========================================================
+   ALL AGENTS PAGE
+   ========================================================= */
+
+.all-agents-page {
+  width: 100%;
+  color: #0f172a;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.all-agents-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+
+  gap: 20px;
+
+  margin-bottom: 24px;
+}
+
+.all-agents-header h2 {
+  margin: 0 0 7px 0;
+
+  font-size: 24px;
+  font-weight: 700;
+
+  color: #0f172a;
+}
+
+.all-agents-header p {
+  margin: 0;
+
+  color: #94a3b8;
+
+  font-size: 13px;
+}
+
+.all-agents-header-actions {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+}
+
+.agents-refresh-btn {
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  border: 1px solid #dfe4ea;
+
+  background: #ffffff;
+
+  border-radius: 10px;
+
+  color: #64748b;
+
+  font-size: 18px;
+
+  cursor: pointer;
+}
+
+.new-agent-btn {
+  height: 40px;
+
+  padding: 0 16px;
+
+  border: none;
+
+  border-radius: 9px;
+
+  background: #2563eb;
+
+  color: #ffffff;
+
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+
+/* =========================================================
+   STAT CARDS
+   ========================================================= */
+
+.agent-stat-grid {
+  display: grid;
+
+  grid-template-columns: repeat(4, 1fr);
+
+  gap: 14px;
+
+  margin-bottom: 24px;
+}
+
+.agent-stat-card {
+  min-height: 155px;
+
+  padding: 20px;
+
+  background: #ffffff;
+
+  border: 1px solid #dfe4ea;
+
+  border-radius: 14px;
+
+  display: flex;
+  flex-direction: column;
+
+  justify-content: center;
+}
+
+.agent-stat-icon {
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  margin-bottom: 16px;
+
+  border-radius: 9px;
+
+  background: #eff6ff;
+
+  color: #2563eb;
+
+  font-size: 20px;
+}
+
+.agent-stat-card strong {
+  color: #07152d;
+
+  font-size: 30px;
+
+  line-height: 1;
+
+  margin-bottom: 9px;
+}
+
+.agent-stat-card span {
+  color: #94a3b8;
+
+  font-size: 13px;
+}
+
+
+/* =========================================================
+   SEARCH
+   ========================================================= */
+
+.agents-search-box {
+  width: 480px;
+  max-width: 100%;
+
+  height: 50px;
+
+  display: flex;
+  align-items: center;
+
+  margin-bottom: 16px;
+
+  padding: 0 15px;
+
+  background: #ffffff;
+
+  border: 1px solid #dfe4ea;
+
+  border-radius: 10px;
+}
+
+.agents-search-icon {
+  margin-right: 10px;
+
+  color: #94a3b8;
+
+  font-size: 18px;
+}
+
+.agents-search-box input {
+  flex: 1;
+
+  min-width: 0;
+
+  border: none;
+
+  outline: none;
+
+  background: transparent;
+
+  color: #334155;
+
+  font-size: 15px;
+}
+
+.agents-search-box input::placeholder {
+  color: #9aa4b5;
+}
+
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+.agents-table-wrapper {
+  width: 100%;
+
+  overflow-x: auto;
+
+  background: #ffffff;
+
+  border: 1px solid #dfe4ea;
+
+  border-radius: 14px;
+}
+
+.agents-table {
+  width: 100%;
+
+  min-width: 1450px;
+
+  border-collapse: collapse;
+}
+
+.agents-table thead {
+  background: #f8fafc;
+}
+
+.agents-table th {
+  padding: 16px 20px;
+
+  text-align: left;
+
+  color: #94a3b8;
+
+  font-size: 11px;
+
+  font-weight: 600;
+
+  border-bottom: 1px solid #edf0f4;
+}
+
+.agents-table td {
+  padding: 18px 20px;
+
+  vertical-align: middle;
+
+  color: #475569;
+
+  font-size: 12px;
+
+  border-bottom: 1px solid #edf0f4;
+}
+
+.agents-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+
+/* =========================================================
+   AGENT PROFILE
+   ========================================================= */
+
+.agent-profile {
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+}
+
+.agent-avatar {
+  width: 36px;
+  height: 36px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  border-radius: 50%;
+
+  background: #dbeafe;
+
+  color: #2563eb;
+
+  font-weight: 600;
+}
+
+.agent-profile-text {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 2px;
+}
+
+.agent-profile-text strong {
+  color: #0f172a;
+
+  font-size: 12px;
+}
+
+.agent-profile-text span {
+  color: #94a3b8;
+
+  font-size: 10px;
+}
+
+.agent-profile-text small {
+  color: #2563eb;
+
+  font-size: 9px;
+
+  font-style: italic;
+}
+
+
+/* =========================================================
+   INVITATION CODE
+   ========================================================= */
+
+.invitation-code {
+  color: #94a3b8 !important;
+
+  letter-spacing: 1px;
+}
+
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+.agent-status {
+  display: inline-flex;
+
+  padding: 5px 10px;
+
+  border-radius: 15px;
+
+  font-size: 10px;
+
+  font-weight: 500;
+}
+
+.agent-status.active {
+  color: #009b67;
+
+  background: #ecfdf3;
+}
+
+
+/* =========================================================
+   SELLERS
+   ========================================================= */
+
+.seller-count {
+  color: #0f172a;
+
+  margin-right: 4px;
+}
+
+.seller-approved {
+  color: #94a3b8;
+
+  font-size: 10px;
+}
+
+
+/* =========================================================
+   PENDING
+   ========================================================= */
+
+.pending-count {
+  color: #f59e0b !important;
+}
+
+
+/* =========================================================
+   LAST LOGIN
+   ========================================================= */
+
+.last-login {
+  color: #94a3b8 !important;
+}
+
+
+/* =========================================================
+   ACTIONS
+   ========================================================= */
+
+.agent-actions {
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  white-space: nowrap;
+}
+
+.agent-action {
+  padding: 0;
+
+  border: none;
+
+  background: transparent;
+
+  font-size: 11px;
+
+  cursor: pointer;
+}
+
+.agent-action.manage {
+  color: #2563eb;
+}
+
+.agent-action.merchants {
+  color: #4f46e5;
+}
+
+.agent-action.message {
+  color: #009b67;
+
+  position: relative;
+}
+
+.message-badge {
+  width: 18px;
+  height: 18px;
+
+  margin-left: 4px;
+
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+
+  border-radius: 50%;
+
+  background: #ef4444;
+
+  color: #ffffff;
+
+  font-size: 9px;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1100px) {
+
+  .agent-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+}
+
+
+@media (max-width: 700px) {
+
+  .all-agents-header {
+    flex-direction: column;
+  }
+
+  .all-agents-header-actions {
+    width: 100%;
+  }
+
+  .new-agent-btn {
+    flex: 1;
+
+    justify-content: center;
+  }
+
+  .agent-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .agents-search-box {
+    width: 100%;
+  }
+
+}
+
+/* =========================================================
+   NEW AGENT MODAL
+   ========================================================= */
+
+.new-agent-modal-overlay {
+  position: fixed;
+
+  inset: 0;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  padding: 20px;
+
+  background: rgba(15, 23, 42, 0.42);
+
+  z-index: 5000;
+}
+
+
+/* =========================================================
+   MODAL BOX
+   ========================================================= */
+
+.new-agent-modal {
+  width: 480px;
+  max-width: 100%;
+
+  max-height: 94vh;
+  overflow-y: auto;
+
+  background: #ffffff;
+
+  border-radius: 18px;
+
+  padding: 26px;
+
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.18);
+}
+
+
+/* =========================================================
+   MODAL HEADER
+   ========================================================= */
+
+.new-agent-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  margin-bottom: 24px;
+}
+
+.new-agent-modal-header h3 {
+  margin: 0;
+
+  color: #111827;
+
+  font-size: 18px;
+
+  font-weight: 700;
+}
+
+.new-agent-modal-close {
+  border: none;
+
+  background: transparent;
+
+  color: #9ca3af;
+
+  font-size: 27px;
+
+  cursor: pointer;
+
+  line-height: 1;
+}
+
+
+/* =========================================================
+   FORM
+   ========================================================= */
+
+.new-agent-form-group {
+  margin-bottom: 17px;
+}
+
+.new-agent-form-group label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: #4b5563;
+
+  font-size: 12px;
+
+  font-weight: 600;
+}
+
+.new-agent-form-group input {
+  width: 100%;
+
+  height: 54px;
+
+  padding: 0 16px;
+
+  border: 1px solid #dce1e8;
+
+  border-radius: 14px;
+
+  outline: none;
+
+  background: #ffffff;
+
+  color: #111827;
+
+  font-size: 15px;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.new-agent-form-group input::placeholder {
+  color: #a0a9b8;
+}
+
+.new-agent-form-group input:focus {
+  border-color: #2563eb;
+
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+
+/* =========================================================
+   STATUS BUTTONS
+   ========================================================= */
+
+.new-agent-status-buttons {
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  gap: 10px;
+}
+
+.agent-status-option {
+  height: 44px;
+
+  border: 1px solid #dce1e8;
+
+  border-radius: 14px;
+
+  background: #ffffff;
+
+  color: #64748b;
+
+  font-size: 13px;
+
+  cursor: pointer;
+}
+
+.agent-status-option.selected-active {
+  border-color: #34d399;
+
+  background: #ecfdf5;
+
+  color: #047857;
+
+  font-weight: 600;
+}
+
+.agent-status-option.selected-suspended {
+  border-color: #ef4444;
+
+  background: #fef2f2;
+
+  color: #dc2626;
+
+  font-weight: 600;
+}
+
+
+/* =========================================================
+   FOOTER
+   ========================================================= */
+
+.new-agent-modal-footer {
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  gap: 10px;
+
+  margin-top: 20px;
+}
+
+.new-agent-cancel-btn,
+.new-agent-create-btn {
+  height: 48px;
+
+  border-radius: 14px;
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.new-agent-cancel-btn {
+  border: 1px solid #dce1e8;
+
+  background: #ffffff;
+
+  color: #374151;
+}
+
+.new-agent-create-btn {
+  border: none;
+
+  background: #6f97ed;
+
+  color: #ffffff;
+}
+
+.new-agent-create-btn:hover {
+  background: #2563eb;
+}
+
+
+/* =========================================================
+   RESPONSIVE MODAL
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+  .new-agent-modal-overlay {
+    align-items: flex-start;
+
+    padding: 15px;
+
+    overflow-y: auto;
+  }
+
+  .new-agent-modal {
+    width: 100%;
+
+    margin-top: 15px;
+
+    padding: 20px;
+
+    border-radius: 15px;
+  }
+
+  .new-agent-form-group input {
+    height: 50px;
+  }
+
+}
+
+
+@media (max-width: 400px) {
+
+  .new-agent-status-buttons,
+  .new-agent-modal-footer {
+    grid-template-columns: 1fr;
+  }
+
+}

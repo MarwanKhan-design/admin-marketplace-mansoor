@@ -1,0 +1,52 @@
+.general-config-page {
+  width: 100%;
+  min-height: 100%;
+  color: #0f172a;
+}
+
+.general-config-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.general-config-header h2 {
+  margin: 0 0 7px;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.general-config-header p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.config-refresh {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dfe4ea;
+  border-radius: 10px;
+  background: #fff;
+  color: #64748b;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.config-refresh:hover {
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.config-refresh.refreshing {
+  animation: config-spin .5s linear infinite;
+}
+
+@keyframes config-spin {
+  to { transform: rotate(360deg); }
+}

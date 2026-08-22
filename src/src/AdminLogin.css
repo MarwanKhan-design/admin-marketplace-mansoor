@@ -1,0 +1,173 @@
+/* Styling to match your image exactly */
+.admin-portal-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #080b11; /* Very dark blue canvas */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #ffffff;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Header Section styling */
+.portal-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.shield-icon {
+  width: 50px;
+  height: 50px;
+  background-color: #3b42c4; /* Blue shield container */
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px auto;
+  padding: 8px;
+}
+
+.shield-icon svg {
+  width: 32px;
+  height: 32px;
+  color: #ffffff;
+}
+
+.portal-header h1 {
+  font-size: 24px;
+  margin: 0 0 6px 0;
+  font-weight: 600;
+}
+
+.portal-header .subtitle {
+  font-size: 14px;
+  color: #737c8e;
+  margin: 0;
+}
+
+/* Central Login Box styling */
+.login-card {
+  background-color: #121824; /* Lighter box background */
+  width: 100%;
+  max-width: 440px;
+  padding: 36px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-sizing: border-box;
+}
+
+.login-card h2 {
+  font-size: 16px;
+  margin: 0 0 24px 0;
+  font-weight: 500;
+  color: #e2e8f0;
+}
+
+/* Form element formatting */
+.input-group {
+  margin-bottom: 20px;
+}
+
+.input-group label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: #737c8e;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.input-group input {
+  width: 100%;
+  background-color: #1a2333;
+  border: 1px solid #28354d;
+  border-radius: 6px;
+  padding: 12px;
+  color: #ffffff;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #5865f2;
+}
+
+/* Password wrapper for eye toggle alignment */
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #737c8e;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* Checkbox Section */
+.remember-me-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.remember-me-group input {
+  accent-color: #5865f2;
+  cursor: pointer;
+}
+
+.remember-me-group label {
+  font-size: 13px;
+  color: #a0aec0;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Purple Action Button */
+.submit-btn {
+  width: 100%;
+  background-color: #5145cd; /* Purple button tint */
+  color: #ffffff;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.submit-btn:hover {
+  background-color: #4338ca;
+}
+
+/* Link Footer styling */
+.portal-footer {
+  margin-top: 24px;
+  font-size: 12px;
+  color: #4a5568;
+}
+
+.portal-footer a {
+  color: #737c8e;
+  text-decoration: none;
+}
+
+.portal-footer a:hover {
+  text-decoration: underline;
+}
+
+.dot-separator {
+  margin: 0 6px;
+}

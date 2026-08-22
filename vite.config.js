@@ -1,0 +1,21 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { sites } from '@openai/sites-vite-plugin'
+import { cloudflare } from '@cloudflare/vite-plugin'
+
+export default defineConfig({
+  plugins: [
+    react(),
+    sites(),
+    cloudflare({
+      config: {
+        main: './worker/index.js',
+        compatibility_date: '2026-08-22',
+        assets: {
+          binding: 'ASSETS',
+          not_found_handling: 'single-page-application',
+        },
+      },
+    }),
+  ],
+})

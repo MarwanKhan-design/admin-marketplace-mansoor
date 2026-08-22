@@ -1,0 +1,340 @@
+/* =========================================================
+   INVITATION CODES PAGE
+   ========================================================= */
+
+.invitation-codes-page {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  color: #0f172a;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.invitation-codes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+
+  gap: 20px;
+
+  margin-bottom: 24px;
+}
+
+.invitation-codes-header h2 {
+  margin: 0 0 7px 0;
+
+  font-size: 23px;
+  font-weight: 700;
+
+  color: #0f172a;
+}
+
+.invitation-codes-header p {
+  margin: 0;
+
+  color: #94a3b8;
+
+  font-size: 13px;
+}
+
+
+/* =========================================================
+   REFRESH
+   ========================================================= */
+
+.invitation-refresh-btn {
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #dfe4ea;
+
+  border-radius: 10px;
+
+  background: #ffffff;
+
+  color: #64748b;
+
+  font-size: 18px;
+
+  cursor: pointer;
+}
+
+
+/* =========================================================
+   SEARCH
+   ========================================================= */
+
+.invitation-search-box {
+  width: 480px;
+  max-width: 100%;
+
+  height: 50px;
+
+  display: flex;
+  align-items: center;
+
+  margin-bottom: 16px;
+
+  padding: 0 15px;
+
+  border: 1px solid #dfe4ea;
+
+  border-radius: 10px;
+
+  background: #ffffff;
+}
+
+.invitation-search-icon {
+  margin-right: 10px;
+
+  color: #94a3b8;
+
+  font-size: 18px;
+}
+
+.invitation-search-box input {
+  flex: 1;
+
+  min-width: 0;
+
+  border: none;
+  outline: none;
+
+  background: transparent;
+
+  color: #334155;
+
+  font-size: 15px;
+}
+
+.invitation-search-box input::placeholder {
+  color: #9aa4b5;
+}
+
+
+/* =========================================================
+   TABLE WRAPPER
+   ========================================================= */
+
+.invitation-table-wrapper {
+  width: 100%;
+
+  overflow-x: auto;
+
+  border: 1px solid #dfe4ea;
+
+  border-radius: 14px;
+
+  background: #ffffff;
+}
+
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+.invitation-table {
+  width: 100%;
+
+  min-width: 950px;
+
+  border-collapse: collapse;
+}
+
+.invitation-table thead {
+  background: #f8fafc;
+}
+
+.invitation-table th {
+  padding: 16px 20px;
+
+  text-align: left;
+
+  color: #94a3b8;
+
+  font-size: 11px;
+  font-weight: 600;
+
+  border-bottom: 1px solid #edf0f4;
+}
+
+.invitation-table td {
+  padding: 18px 20px;
+
+  vertical-align: middle;
+
+  color: #475569;
+
+  font-size: 12px;
+
+  border-bottom: 1px solid #edf0f4;
+}
+
+.invitation-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+
+/* =========================================================
+   AGENT PROFILE
+   ========================================================= */
+
+.invitation-agent-profile {
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+}
+
+.invitation-agent-avatar {
+  width: 36px;
+  height: 36px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: #dbeafe;
+
+  color: #2563eb;
+
+  font-weight: 600;
+}
+
+.invitation-agent-info {
+  display: flex;
+  flex-direction: column;
+
+  gap: 2px;
+}
+
+.invitation-agent-info strong {
+  color: #0f172a;
+
+  font-size: 12px;
+}
+
+.invitation-agent-info span {
+  color: #94a3b8;
+
+  font-size: 10px;
+}
+
+
+/* =========================================================
+   CODE
+   ========================================================= */
+
+.invitation-code-value {
+  color: #94a3b8 !important;
+
+  letter-spacing: 2px;
+
+  font-weight: 600;
+}
+
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+.invitation-status-enabled {
+  display: inline-flex;
+
+  padding: 5px 10px;
+
+  border-radius: 14px;
+
+  background: #ecfdf3;
+
+  color: #009b67;
+
+  font-size: 10px;
+
+  font-weight: 500;
+}
+
+
+/* =========================================================
+   SELLERS
+   ========================================================= */
+
+.invitation-sellers-linked {
+  color: #0f172a !important;
+}
+
+
+/* =========================================================
+   ACTIONS
+   ========================================================= */
+
+.invitation-actions {
+  display: flex;
+  align-items: center;
+
+  gap: 14px;
+
+  white-space: nowrap;
+}
+
+.invitation-actions button {
+  padding: 0;
+
+  border: none;
+
+  background: transparent;
+
+  font-size: 12px;
+
+  cursor: pointer;
+}
+
+.invitation-regenerate-btn {
+  color: #2563eb;
+}
+
+.invitation-disable-btn {
+  color: #ef4444;
+}
+
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.invitation-empty {
+  height: 110px;
+
+  text-align: center !important;
+
+  color: #94a3b8 !important;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+  .invitation-codes-header {
+    flex-direction: column;
+  }
+
+  .invitation-search-box {
+    width: 100%;
+  }
+
+}

@@ -1,0 +1,757 @@
+/* =========================================================
+   DASHBOARD PAGE
+   ========================================================= */
+
+.dashboard-page {
+  width: 100%;
+  color: #0f172a;
+}
+
+
+/* =========================================================
+   TOP BUTTONS
+   ========================================================= */
+
+.dashboard-top-tabs {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  margin-bottom: 18px;
+}
+
+.dashboard-top-left {
+  display: flex;
+  gap: 6px;
+}
+
+.dashboard-tab-button {
+  height: 34px;
+
+  padding: 0 18px;
+
+  border: 1px solid #cbd5e1;
+
+  background: #ffffff;
+
+  border-radius: 4px;
+
+  color: #334155;
+
+  font-size: 13px;
+
+  cursor: pointer;
+}
+
+.dashboard-tab-button.active {
+  background: #2563eb;
+
+  border-color: #2563eb;
+
+  color: #ffffff;
+
+  font-weight: 600;
+}
+
+.refresh-button {
+  width: 32px;
+  height: 32px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  border: 1px solid #e2e8f0;
+
+  background: #ffffff;
+
+  border-radius: 5px;
+
+  color: #94a3b8;
+
+  cursor: pointer;
+
+  font-size: 18px;
+}
+
+
+/* =========================================================
+   GENERAL PANEL
+   ========================================================= */
+
+.dashboard-panel {
+  width: 100%;
+
+  background: #ffffff;
+
+  border: 1px solid #dfe4ea;
+
+  border-radius: 12px;
+
+  padding: 22px;
+
+  margin-bottom: 18px;
+}
+
+.dashboard-section-title {
+  margin: 0 0 18px 0;
+
+  font-size: 16px;
+
+  font-weight: 700;
+
+  color: #0f172a;
+}
+
+
+/* =========================================================
+   AGENT PERFORMANCE
+   ========================================================= */
+
+.performance-cards {
+  display: grid;
+
+  grid-template-columns: repeat(2, 1fr);
+
+  gap: 25px;
+}
+
+.performance-card {
+  min-height: 122px;
+
+  padding: 20px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  justify-content: center;
+
+  background: #f8f9fb;
+
+  border-radius: 14px;
+}
+
+.small-label {
+  color: #94a3b8;
+
+  font-size: 13px;
+
+  margin-bottom: 7px;
+}
+
+.performance-value {
+  color: #07152d;
+
+  font-size: 33px;
+
+  line-height: 1;
+
+  margin-bottom: 9px;
+}
+
+.today-text {
+  color: #94a3b8;
+
+  font-size: 12px;
+}
+
+.today-text b {
+  color: #2563eb;
+}
+
+
+/* =========================================================
+   SUB AGENT SECTION
+   ========================================================= */
+
+.sub-agent-section {
+  margin-top: 24px;
+}
+
+.sub-agent-section h3 {
+  margin: 0;
+
+  font-size: 15px;
+
+  font-weight: 500;
+}
+
+.empty-sub-agents {
+  min-height: 155px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  justify-content: center;
+
+  align-items: center;
+
+  color: #9aa4b5;
+
+  gap: 8px;
+}
+
+.empty-user-icon {
+  color: #cbd5e1;
+
+  font-size: 30px;
+}
+
+
+/* =========================================================
+   SELLER STATISTICS
+   ========================================================= */
+
+.seller-stat-grid {
+  display: grid;
+
+  grid-template-columns: repeat(4, 1fr);
+
+  gap: 14px;
+
+  margin-bottom: 18px;
+}
+
+.small-stat-card,
+.finance-stat-card,
+.pending-withdraw-card {
+  background: #ffffff;
+
+  border: 1px solid #dfe4ea;
+
+  border-radius: 12px;
+
+  padding: 20px;
+}
+
+.small-stat-card {
+  min-height: 94px;
+}
+
+.stat-label {
+  display: block;
+
+  color: #94a3b8;
+
+  font-size: 11px;
+
+  font-weight: 600;
+
+  margin-bottom: 12px;
+}
+
+.small-stat-card strong,
+.finance-stat-card strong,
+.pending-withdraw-card strong {
+  display: block;
+
+  color: #07152d;
+
+  font-size: 27px;
+
+  line-height: 1;
+}
+
+
+/* =========================================================
+   FINANCE STATISTICS
+   ========================================================= */
+
+.finance-stat-grid {
+  display: grid;
+
+  grid-template-columns: repeat(3, 1fr);
+
+  gap: 14px;
+
+  margin-bottom: 18px;
+}
+
+.finance-stat-card {
+  min-height: 116px;
+}
+
+.finance-stat-card strong {
+  margin-bottom: 10px;
+}
+
+.pending-withdraw-card {
+  width: 160px;
+
+  min-height: 95px;
+
+  margin-bottom: 18px;
+}
+
+
+/* =========================================================
+   COLORS
+   ========================================================= */
+
+.blue-number {
+  color: #2563eb !important;
+}
+
+.green-number {
+  color: #009b67 !important;
+}
+
+.orange-number {
+  color: #ff7300 !important;
+}
+
+.red-number {
+  color: #ef4444 !important;
+}
+
+.purple-number {
+  color: #a855f7 !important;
+}
+
+
+/* =========================================================
+   TREND PANEL
+   ========================================================= */
+
+.trend-panel {
+  min-height: 330px;
+}
+
+.trend-chart-wrapper {
+  width: 100%;
+
+  display: flex;
+
+  height: 225px;
+}
+
+.trend-left-axis,
+.trend-right-axis {
+  width: 35px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  justify-content: space-between;
+
+  padding-bottom: 20px;
+
+  color: #94a3b8;
+
+  font-size: 10px;
+}
+
+.trend-left-axis {
+  align-items: flex-end;
+
+  padding-right: 7px;
+}
+
+.trend-right-axis {
+  align-items: flex-start;
+
+  padding-left: 7px;
+}
+
+.trend-chart {
+  position: relative;
+
+  flex: 1;
+
+  min-width: 0;
+
+  height: 205px;
+
+  border-left: 1px solid #64748b;
+
+  border-right: 1px solid #64748b;
+
+  border-bottom: 1px solid #64748b;
+}
+
+
+/* =========================================================
+   CHART GRID
+   ========================================================= */
+
+.trend-horizontal-line {
+  position: absolute;
+
+  left: 0;
+
+  width: 100%;
+
+  border-top: 1px dashed #edf0f4;
+}
+
+.trend-h1 {
+  top: 0;
+}
+
+.trend-h2 {
+  top: 25%;
+}
+
+.trend-h3 {
+  top: 50%;
+}
+
+.trend-h4 {
+  top: 75%;
+}
+
+.trend-h5 {
+  top: 100%;
+}
+
+.trend-vertical-line {
+  position: absolute;
+
+  top: 0;
+
+  bottom: 0;
+
+  border-left: 1px dashed #edf0f4;
+}
+
+.trend-v1 {
+  left: 14%;
+}
+
+.trend-v2 {
+  left: 28%;
+}
+
+.trend-v3 {
+  left: 42%;
+}
+
+.trend-v4 {
+  left: 56%;
+}
+
+.trend-v5 {
+  left: 70%;
+}
+
+.trend-v6 {
+  left: 84%;
+}
+
+.trend-v7 {
+  left: 98%;
+}
+
+
+/* =========================================================
+   SVG CHART
+   ========================================================= */
+
+.dashboard-trend-svg {
+  position: absolute;
+
+  inset: 0;
+
+  width: 100%;
+
+  height: 100%;
+
+  overflow: visible;
+}
+
+.dashboard-trend-svg path {
+  fill: none;
+
+  stroke-width: 1.5;
+
+  vector-effect: non-scaling-stroke;
+}
+
+.register-curve {
+  stroke: #3b82f6;
+}
+
+.recharge-curve {
+  stroke: #00b87c;
+}
+
+.withdraw-curve {
+  stroke: #ff8a00;
+}
+
+
+/* =========================================================
+   X AXIS
+   ========================================================= */
+
+.trend-x-axis {
+  position: absolute;
+
+  left: -8px;
+
+  right: -8px;
+
+  bottom: -22px;
+
+  display: flex;
+
+  justify-content: space-between;
+
+  color: #94a3b8;
+
+  font-size: 10px;
+}
+
+
+/* =========================================================
+   LEGEND
+   ========================================================= */
+
+.trend-legend {
+  margin-top: 27px;
+
+  display: flex;
+
+  justify-content: center;
+
+  gap: 15px;
+
+  font-size: 10px;
+}
+
+.legend-item {
+  display: flex;
+
+  align-items: center;
+
+  gap: 5px;
+}
+
+.legend-item i {
+  width: 8px;
+
+  height: 8px;
+
+  border-radius: 50%;
+}
+
+.legend-item.recharge {
+  color: #00b87c;
+}
+
+.legend-item.recharge i {
+  border: 2px solid #00b87c;
+}
+
+.legend-item.register {
+  color: #3b82f6;
+}
+
+.legend-item.register i {
+  border: 2px solid #3b82f6;
+}
+
+.legend-item.withdraw {
+  color: #ff8a00;
+}
+
+.legend-item.withdraw i {
+  border: 2px solid #ff8a00;
+}
+
+
+/* =========================================================
+   PENDING REVIEW
+   ========================================================= */
+
+.pending-review-grid {
+  display: grid;
+
+  grid-template-columns: repeat(4, 1fr);
+
+  gap: 18px;
+}
+
+.pending-review-card {
+  min-height: 98px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  background: #f8f9fb;
+
+  border-radius: 12px;
+}
+
+.pending-review-card strong {
+  font-size: 28px;
+
+  line-height: 1;
+
+  margin-bottom: 10px;
+}
+
+.pending-review-card span {
+  color: #94a3b8;
+
+  font-size: 12px;
+}
+
+
+/* =========================================================
+   RECENT USERS
+   ========================================================= */
+
+.recent-users-panel {
+  padding: 0;
+
+  overflow: hidden;
+}
+
+.recent-users-panel .dashboard-section-title {
+  padding: 18px;
+
+  margin: 0;
+
+  border-bottom: 1px solid #edf0f4;
+}
+
+.recent-users-scroll {
+  width: 100%;
+
+  overflow-x: auto;
+}
+
+.recent-users-table {
+  width: 100%;
+
+  min-width: 900px;
+
+  border-collapse: collapse;
+
+  font-size: 12px;
+}
+
+.recent-users-table th {
+  padding: 14px 18px;
+
+  background: #f8fafc;
+
+  color: #94a3b8;
+
+  text-align: left;
+
+  font-size: 10px;
+
+  font-weight: 600;
+
+  border-bottom: 1px solid #edf0f4;
+}
+
+.recent-users-table td {
+  padding: 13px 18px;
+
+  color: #64748b;
+
+  border-bottom: 1px solid #edf0f4;
+}
+
+.recent-users-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.recent-users-table .store-name {
+  color: #0f172a;
+
+  font-weight: 600;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1100px) {
+
+  .seller-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pending-review-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+}
+
+
+@media (max-width: 850px) {
+
+  .performance-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+
+@media (max-width: 600px) {
+
+  .dashboard-top-tabs {
+    gap: 10px;
+  }
+
+  .dashboard-tab-button {
+    padding: 0 12px;
+
+    font-size: 12px;
+  }
+
+  .dashboard-panel {
+    padding: 15px;
+
+    border-radius: 9px;
+  }
+
+  .seller-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pending-review-grid {
+    grid-template-columns: 1fr 1fr;
+
+    gap: 10px;
+  }
+
+  .pending-withdraw-card {
+    width: 100%;
+  }
+
+  .trend-chart-wrapper {
+    min-width: 650px;
+  }
+
+  .trend-panel {
+    overflow-x: auto;
+  }
+
+}
+
+
+@media (max-width: 400px) {
+
+  .pending-review-grid {
+    grid-template-columns: 1fr;
+  }
+
+}

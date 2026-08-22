@@ -1,0 +1,289 @@
+/* =========================================================
+   SUSPENDED AGENTS PAGE
+   ========================================================= */
+
+.suspended-agents-page {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  color: #0f172a;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.suspended-agents-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  margin-bottom: 24px;
+}
+
+.suspended-agents-header h2 {
+  margin: 0 0 7px 0;
+
+  font-size: 23px;
+  font-weight: 700;
+
+  color: #0f172a;
+}
+
+.suspended-agents-header p {
+  margin: 0;
+
+  color: #94a3b8;
+
+  font-size: 13px;
+}
+
+
+/* =========================================================
+   REFRESH BUTTON
+   ========================================================= */
+
+.suspended-refresh-btn {
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #dfe4ea;
+
+  border-radius: 10px;
+
+  background: #ffffff;
+
+  color: #64748b;
+
+  font-size: 18px;
+
+  cursor: pointer;
+}
+
+
+/* =========================================================
+   SEARCH
+   ========================================================= */
+
+.suspended-search-box {
+  width: 480px;
+  max-width: 100%;
+
+  height: 50px;
+
+  display: flex;
+  align-items: center;
+
+  padding: 0 15px;
+
+  margin-bottom: 16px;
+
+  border: 1px solid #dfe4ea;
+
+  border-radius: 10px;
+
+  background: #ffffff;
+}
+
+.suspended-search-icon {
+  margin-right: 10px;
+
+  color: #94a3b8;
+
+  font-size: 18px;
+}
+
+.suspended-search-box input {
+  flex: 1;
+
+  min-width: 0;
+
+  border: none;
+  outline: none;
+
+  background: transparent;
+
+  color: #334155;
+
+  font-size: 15px;
+}
+
+.suspended-search-box input::placeholder {
+  color: #9aa4b5;
+}
+
+
+/* =========================================================
+   TABLE WRAPPER
+   ========================================================= */
+
+.suspended-table-wrapper {
+  width: 100%;
+
+  overflow-x: auto;
+
+  border: 1px solid #dfe4ea;
+
+  border-radius: 14px;
+
+  background: #ffffff;
+}
+
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+.suspended-table {
+  width: 100%;
+
+  min-width: 1100px;
+
+  border-collapse: collapse;
+}
+
+.suspended-table thead {
+  background: #f8fafc;
+}
+
+.suspended-table th {
+  padding: 16px 20px;
+
+  border-bottom: 1px solid #edf0f4;
+
+  color: #94a3b8;
+
+  text-align: left;
+
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.suspended-table td {
+  padding: 18px 20px;
+
+  border-bottom: 1px solid #edf0f4;
+
+  color: #475569;
+
+  vertical-align: middle;
+
+  font-size: 12px;
+}
+
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.suspended-empty-state {
+  height: 138px;
+
+  text-align: center !important;
+
+  color: #94a3b8 !important;
+
+  font-size: 12px !important;
+}
+
+
+/* =========================================================
+   AGENT PROFILE
+   ========================================================= */
+
+.suspended-agent-profile {
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+}
+
+.suspended-agent-avatar {
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border-radius: 50%;
+
+  background: #fee2e2;
+
+  color: #dc2626;
+
+  font-weight: 600;
+}
+
+.suspended-agent-profile > div:last-child {
+  display: flex;
+  flex-direction: column;
+
+  gap: 2px;
+}
+
+.suspended-agent-profile strong {
+  color: #0f172a;
+
+  font-size: 12px;
+}
+
+.suspended-agent-profile span {
+  color: #94a3b8;
+
+  font-size: 10px;
+}
+
+.suspended-agent-profile small {
+  color: #2563eb;
+
+  font-size: 9px;
+
+  font-style: italic;
+}
+
+
+/* =========================================================
+   SUSPENDED STATUS
+   ========================================================= */
+
+.suspended-status-pill {
+  display: inline-flex;
+
+  padding: 5px 10px;
+
+  border-radius: 15px;
+
+  background: #fef2f2;
+
+  color: #dc2626;
+
+  font-size: 10px;
+  font-weight: 500;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+  .suspended-agents-header {
+    flex-direction: column;
+  }
+
+  .suspended-search-box {
+    width: 100%;
+  }
+
+}

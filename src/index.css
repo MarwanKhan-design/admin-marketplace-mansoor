@@ -26,3 +26,17 @@ body {
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
+.global-demo-badge {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 10000;
+  padding: 7px 11px;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: rgba(239, 246, 255, 0.96);
+  color: #1d4ed8;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  font: 700 11px/1.2 "Segoe UI", sans-serif;
+  letter-spacing: 0.08em;
+}

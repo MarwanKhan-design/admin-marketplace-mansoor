@@ -25,7 +25,7 @@ export default function SellerLogin({ onLoginSuccess }) {
     <main className="seller-login-page">
       <section className="seller-login-brand">
         <div className="seller-brand-mark">S</div>
-        <h1>Seller Center</h1>
+        <h1>MarketHub Seller Center</h1>
         <p>Manage your store, products, orders, and earnings from one place.</p>
         <div className="seller-brand-points">
           <span>✓ Track store performance</span>
@@ -39,7 +39,7 @@ export default function SellerLogin({ onLoginSuccess }) {
           <div className="seller-login-heading">
             <span className="seller-mobile-mark">S</span>
             <h2>Welcome back</h2>
-            <p>Sign in to continue to Seller Center</p>
+            <p>Sign in to the MarketHub demo seller portal</p>
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -59,7 +59,7 @@ export default function SellerLogin({ onLoginSuccess }) {
               <button type="button">Forgot password?</button>
             </div>
 
-            <button className="seller-sign-in-btn" type="submit" disabled={submitting}>{submitting ? 'Signing in…' : 'Sign in to Seller Center'}</button>
+            <button className="seller-sign-in-btn" type="submit" disabled={submitting}>{submitting ? 'Signing in…' : 'Sign in to MarketHub'}</button>
           </form>
 
           <div className="seller-login-footer">

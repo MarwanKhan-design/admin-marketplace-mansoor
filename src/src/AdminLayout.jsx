@@ -90,7 +90,7 @@ export default function AdminLayout({ onLogout }) {
 
         {/* Brand */}
         <div className="admin-brand">
-          <h2>Tiktok Admin</h2>
+          <h2>MarketHub Admin</h2>
 
           {/* Mobile close button */}
           <button

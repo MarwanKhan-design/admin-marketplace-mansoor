@@ -35,12 +35,14 @@ export default function App() {
     setIsAdminLoggedIn(false);
   };
 
-  if (authLoading) return <div style={{minHeight:'100vh',display:'grid',placeItems:'center',fontFamily:'Segoe UI'}}>Loading…</div>;
+  const demoBadge = <div className="global-demo-badge">DEMO ENVIRONMENT</div>;
+
+  if (authLoading) return <><div style={{minHeight:'100vh',display:'grid',placeItems:'center',fontFamily:'Segoe UI'}}>Loading…</div>{demoBadge}</>;
 
   if (isSellerPortal) {
-    return isSellerLoggedIn
+    return <>{isSellerLoggedIn
       ? <SellerPortal onLogout={async () => { await sellerSupabase.auth.signOut(); setIsSellerLoggedIn(false); }} />
-      : <SellerLogin onLoginSuccess={() => setIsSellerLoggedIn(true)} />;
+      : <SellerLogin onLoginSuccess={() => setIsSellerLoggedIn(true)} />}{demoBadge}</>;
   }
 
   return (
@@ -50,6 +52,7 @@ export default function App() {
       ) : (
         <AdminLayout onLogout={handleLogout} />
       )}
+      {demoBadge}
     </>
   );
 }

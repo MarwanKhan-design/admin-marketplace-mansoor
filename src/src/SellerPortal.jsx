@@ -11,7 +11,7 @@ import SellerService from './SellerService';
 
 const periods = ['Today', 'This Week', 'This Month', 'Total'];
 const faqs = [
-  ['What is TikTok Online-to-Online Store?', 'It is an online marketplace where sellers can showcase products and manage orders.'],
+  ['What is the MarketHub online store?', 'It is a demo marketplace where sellers can showcase products and manage orders.'],
   ["Why can't I stop selling?", 'Please complete or cancel any pending orders before stopping store activity.'],
   ["Why can't I recharge?", 'Confirm your payment method and contact support if the issue continues.'],
   ['Can I become a supplier?', 'Supplier applications can be submitted through the Service section.'],
@@ -47,10 +47,10 @@ export default function SellerPortal({ onLogout }) {
   return (
     <main className="seller-center-page">
       <div className="seller-center-shell">
-        <header className="seller-center-topbar"><button type="button" onClick={onLogout} aria-label="Sign out">↪</button><h1>Seller Center</h1><div><button type="button" onClick={() => setSellerView('messages')} aria-label="Messages">◌</button><button type="button" aria-label="Language">◎</button></div></header>
+        <header className="seller-center-topbar"><button type="button" onClick={onLogout} aria-label="Sign out">↪</button><h1>MarketHub Seller Center</h1><div><button type="button" onClick={() => setSellerView('messages')} aria-label="Messages">◌</button><button type="button" aria-label="Language">◎</button></div></header>
         <section className="seller-profile-row"><div className="seller-avatar">{shopName.charAt(0).toUpperCase()}</div><div className="seller-profile-copy"><div><h2>{shopName}</h2><button type="button" disabled={nameChanged} onClick={() => { setShopNameDraft(shopName); setShowNameModal(true); }} aria-label="Edit shop name">✎</button></div><span>Credit Score 95</span></div><button className="seller-wallet-btn" type="button" onClick={() => setSellerView('wallet')}>Wallet</button></section>
         <nav className="seller-primary-links"><button type="button" onClick={() => setSellerView('showcase')}>▣ <strong>Showcase</strong></button><button type="button" onClick={() => setSellerView('orders')}>▤ <strong>Orders</strong></button></nav>
-        <section className="seller-traffic-banner"><strong>TikTok<span>·</span><br />Shop</strong><div>Help to get <b>Free Traffic</b><br /><em>1,000,000</em> of Products Exposed</div><i /></section>
+        <section className="seller-traffic-banner"><strong>Market<span>·</span><br />Hub</strong><div>Grow with <b>Marketplace Traffic</b><br /><em>Demo</em> product exposure</div><i /></section>
         <div className="seller-period-tabs">{periods.map((item) => <button type="button" key={item} className={period === item ? 'active' : ''} onClick={() => setPeriod(item)}>{item}</button>)}</div>
         <section className="seller-metrics"><h2>Key Metrics</h2><div className="seller-metric-grid"><article className="sales-card"><span>Total Sales</span><strong>$0.00</strong></article><article><span>Expected Profit</span><strong>$0.00</strong></article><article><span>Order Quantity</span><strong>0</strong></article><article><span>Product Clicks</span><strong>10,025</strong></article></div></section>
         <section className="seller-sales-chart"><h2>Total Sales</h2><div className="chart-area"><div className="chart-y"><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div><div className="chart-plot"><div className="chart-line">{Array.from({ length: 12 }).map((_, index) => <i key={index} />)}</div><div className="chart-times">{['00:00','02:00','04:00','06:00','08:00','10:00','12:00','14:00','16:00','18:00','20:00','22:00'].map((time) => <span key={time}>{time}</span>)}</div></div></div><div className="chart-legend"><i /> Total Sales</div></section>

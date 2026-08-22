@@ -36,8 +36,8 @@ export default function AdminLogin({ onLoginSuccess }) {
             <path fillRule="evenodd" d="M12 1.5a.75.75 0 0 1 .75.75V4.5a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 12 1.5ZM12 4.5a7.5 7.5 0 0 0-7.5 7.5c0 4.914 4.305 8.557 7.042 10.15a.75.75 0 0 0 .916 0C15.195 20.557 19.5 16.914 19.5 12a7.5 7.5 0 0 0-7.5-7.5Zm0 1.5a6 6 0 0 0-6 6c0 3.614 3.011 6.584 5.562 8.125a.75.75 0 0 0 .876 0C14.989 18.584 18 15.614 18 12a6 6 0 0 0-6-6Zm0 2.25a.75.75 0 0 1 .75.75v3.25h3.25a.75.75 0 0 1 0 1.5h-4a.75.75 0 0 1-.75-.75v-4a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
           </svg>
         </div>
-        <h1>Admin Portal</h1>
-        <p className="subtitle">Authorized personnel only</p>
+        <h1>MarketHub Admin Portal</h1>
+        <p className="subtitle">Demo environment · Authorized testers only</p>
       </div>
 
       {/* Main Login Card */}

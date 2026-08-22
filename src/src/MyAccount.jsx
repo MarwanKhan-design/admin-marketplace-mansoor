@@ -9,7 +9,7 @@ export default function MyAccount() {
   const [showPasswords, setShowPasswords] = useState({ current: false, next: false, confirm: false });
   const [notice, setNotice] = useState('');
   const inviteCode = '88888888';
-  const inviteLink = `https://tkseller.co/register?code=${inviteCode}`;
+  const inviteLink = `${window.location.origin}/seller?invite=${inviteCode}`;
 
   const flash = (message) => { setNotice(message); window.setTimeout(() => setNotice(''), 1800); };
   const updatePassword = (event) => {

@@ -1,80 +1,60 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import './Dashboard.css';
+import { adminSupabase } from '../shared/supabase';
 
 export default function Dashboard({ onOpenMerchants }) {
 
-  const recentUsers = [
-    {
-      id: '08A61A5D',
-      store: 'agent1111',
-      email: 'agent1111@gmail.com',
-      agent: '—',
-      registerTime: '2026-08-09 14:16',
-    },
-    {
-      id: '781B16FF',
-      store: 'chaudhary',
-      email: 'chaudhary@gmail.com',
-      agent: '—',
-      registerTime: '2026-08-08 01:19',
-    },
-    {
-      id: 'BEF82DC4',
-      store: 'Test Agent',
-      email: 'agent@gmail.com',
-      agent: '—',
-      registerTime: '2026-08-06 20:24',
-    },
-    {
-      id: 'E37C8999',
-      store: 'Khan321',
-      email: 'agent100@gmail.com',
-      agent: '—',
-      registerTime: '2026-07-26 19:13',
-    },
-    {
-      id: 'CD1EB8DD',
-      store: 'khan',
-      email: 'agent1000@gmail.com',
-      agent: '—',
-      registerTime: '2026-07-26 19:09',
-    },
-    {
-      id: '6016D1FC',
-      store: 'agent90',
-      email: 'agent90@gmail.com',
-      agent: '—',
-      registerTime: '2026-07-26 15:34',
-    },
-    {
-      id: '38DE9EC5',
-      store: 'agent00',
-      email: 'agent00@gmail.com',
-      agent: '—',
-      registerTime: '2026-07-26 13:59',
-    },
-    {
-      id: '5D100585',
-      store: 'agent0',
-      email: 'agent0@gmail.com',
-      agent: '—',
-      registerTime: '2026-07-26 12:30',
-    },
-    {
-      id: '4488056D',
-      store: 'agent9',
-      email: 'agent9@gmail.com',
-      agent: '—',
-      registerTime: '2026-07-24 12:39',
-    },
-    {
-      id: 'CEABFD4E',
-      store: 'agent6',
-      email: 'agent6@gmail.com',
-      agent: '—',
-      registerTime: '2026-07-24 03:33',
-    },
-  ];
+  const [recentUsers, setRecentUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [stats, setStats] = useState({
+    totalSellers: 0, pendingApplications: 0, approvedSellers: 0, rejectedSellers: 0,
+    totalUsers: 0, totalRecharge: 0, totalWithdraw: 0, pendingWithdraw: 0,
+    myUsers: 0, myRecharge: 0, pendingFeedback: 0,
+  });
+
+  useEffect(() => {
+    const load = async () => {
+      const [profilesRes, txnRes, withdrawRes, feedbackRes] = await Promise.all([
+        adminSupabase.from('profiles').select('id,display_name,email,role,agent_id,created_at').order('created_at', { ascending: false }),
+        adminSupabase.from('wallet_transactions').select('amount'),
+        adminSupabase.from('withdrawals').select('amount,status'),
+        adminSupabase.from('feedback_tickets').select('id,status'),
+      ]);
+
+      const profiles = profilesRes.data || [];
+      setRecentUsers(profiles.slice(0, 10).map((row) => ({
+        id: row.id.slice(0, 8).toUpperCase(),
+        store: row.display_name || row.email?.split('@')[0] || 'User',
+        email: row.email,
+        agent: row.agent_id || '—',
+        registerTime: new Date(row.created_at).toLocaleString('en-CA', { hour12: false }).replace(',', ''),
+      })));
+
+      const sellers = profiles.filter((row) => row.role === 'seller');
+      const totalRecharge = (txnRes.data || []).filter((row) => Number(row.amount) > 0).reduce((sum, row) => sum + Number(row.amount), 0);
+      const withdrawals = withdrawRes.data || [];
+      const totalWithdraw = withdrawals.filter((row) => row.status === 'Approved').reduce((sum, row) => sum + Number(row.amount), 0);
+      const pendingWithdraw = withdrawals.filter((row) => row.status === 'Pending').length;
+      const pendingFeedback = (feedbackRes.data || []).filter((row) => row.status === 'Open').length;
+
+      setStats({
+        totalSellers: sellers.length,
+        pendingApplications: 0,
+        approvedSellers: sellers.length,
+        rejectedSellers: 0,
+        totalUsers: profiles.length,
+        totalRecharge,
+        totalWithdraw,
+        pendingWithdraw,
+        myUsers: sellers.length,
+        myRecharge: totalRecharge,
+        pendingFeedback,
+      });
+      setLoading(false);
+    };
+    load();
+  }, []);
 
   return (
     <div className="dashboard-page">
@@ -126,7 +106,7 @@ export default function Dashboard({ onOpenMerchants }) {
             </span>
 
             <strong className="performance-value">
-              18
+              {stats.myUsers}
             </strong>
 
             <span className="today-text">
@@ -143,7 +123,7 @@ export default function Dashboard({ onOpenMerchants }) {
             </span>
 
             <strong className="performance-value">
-              6,991.92
+              {stats.myRecharge.toFixed(2)}
             </strong>
 
             <span className="today-text">
@@ -193,7 +173,7 @@ export default function Dashboard({ onOpenMerchants }) {
           </span>
 
           <strong>
-            18
+            {stats.totalSellers}
           </strong>
 
         </div>
@@ -206,7 +186,7 @@ export default function Dashboard({ onOpenMerchants }) {
           </span>
 
           <strong className="blue-number">
-            0
+            {stats.pendingApplications}
           </strong>
 
         </div>
@@ -219,7 +199,7 @@ export default function Dashboard({ onOpenMerchants }) {
           </span>
 
           <strong className="green-number">
-            18
+            {stats.approvedSellers}
           </strong>
 
         </div>
@@ -232,7 +212,7 @@ export default function Dashboard({ onOpenMerchants }) {
           </span>
 
           <strong className="red-number">
-            0
+            {stats.rejectedSellers}
           </strong>
 
         </div>
@@ -253,7 +233,7 @@ export default function Dashboard({ onOpenMerchants }) {
           </span>
 
           <strong className="blue-number">
-            18
+            {stats.totalUsers}
           </strong>
 
           <span className="today-text">
@@ -270,7 +250,7 @@ export default function Dashboard({ onOpenMerchants }) {
           </span>
 
           <strong className="green-number">
-            6,991.92
+            {stats.totalRecharge.toFixed(2)}
           </strong>
 
           <span className="today-text">
@@ -287,7 +267,7 @@ export default function Dashboard({ onOpenMerchants }) {
           </span>
 
           <strong className="orange-number">
-            431.00
+            {stats.totalWithdraw.toFixed(2)}
           </strong>
 
           <span className="today-text">
@@ -308,7 +288,7 @@ export default function Dashboard({ onOpenMerchants }) {
         </span>
 
         <strong>
-          0
+          {stats.pendingWithdraw}
         </strong>
 
       </div>
@@ -545,7 +525,7 @@ export default function Dashboard({ onOpenMerchants }) {
           <div className="pending-review-card">
 
             <strong className="purple-number">
-              1
+              {stats.pendingFeedback}
             </strong>
 
             <span>
@@ -630,6 +610,10 @@ export default function Dashboard({ onOpenMerchants }) {
                 </tr>
 
               ))}
+
+              {!loading && !recentUsers.length && (
+                <tr><td colSpan={5}>No users yet.</td></tr>
+              )}
 
             </tbody>
 

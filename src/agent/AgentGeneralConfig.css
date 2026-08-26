@@ -1,0 +1,25 @@
+.agent-general-page { padding: 34px 28px 70px; color: #111827; }
+.agent-general-page > header { margin-bottom: 22px; }
+.agent-general-page h2 { margin: 0 0 5px; font-size: 25px; }
+.agent-general-page > header p { margin: 0; color: #94a3b8; }
+.agent-general-page form { width: min(710px, 100%); }
+.agent-general-card { margin-bottom: 18px; padding: 25px 24px; border: 1px solid #dce2e8; border-radius: 15px; background: #fff; }
+.agent-general-card h3 { margin: 0 0 22px; font-size: 15px; }
+.agent-general-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 18px; }
+.agent-general-grid label { display: grid; gap: 7px; color: #475569; font-size: 13px; }
+.agent-general-grid input, .agent-general-grid select { width: 100%; min-height: 45px; box-sizing: border-box; border: 1px solid #d9e0e8; border-radius: 10px; padding: 0 14px; background: white; color: #111827; font: inherit; font-size: 16px; outline: none; }
+.agent-general-grid input:focus, .agent-general-grid select:focus { border-color: #149b90; box-shadow: 0 0 0 2px rgba(20,155,144,.09); }
+.agent-general-grid input:disabled { background: #f8fafc; color: #9aa7bb; cursor: not-allowed; }
+.agent-preferences-card { padding-bottom: 22px; }
+.agent-general-check { display: flex; align-items: center; justify-content: space-between; min-height: 30px; color: #334155; font-size: 14px; }
+.agent-general-check input { width: 19px; height: 19px; accent-color: #149b90; }
+.agent-select-grid { margin-top: 12px; }
+.agent-general-save { display: flex; align-items: center; gap: 14px; }
+.agent-general-save button { min-height: 42px; padding: 0 24px; border: 0; border-radius: 9px; background: #149b90; color: white; font-weight: 700; cursor: pointer; }
+.agent-general-save button:hover { background: #10877e; }
+.agent-general-save span { color: #07865b; font-size: 14px; font-weight: 700; }
+@media (max-width: 720px) {
+  .agent-general-page { padding: 24px 16px 55px; }
+  .agent-general-card { padding: 20px 16px; }
+  .agent-general-grid { grid-template-columns: 1fr; gap: 16px; }
+}

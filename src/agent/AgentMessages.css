@@ -1,0 +1,26 @@
+.agent-messages-page { display: flex; flex-direction: column; min-height: calc(100vh - 58px); padding: 34px 28px 24px; box-sizing: border-box; color: #111827; }
+.agent-messages-page > header { margin-bottom: 22px; }
+.agent-messages-page h2 { margin: 0 0 5px; font-size: 25px; }
+.agent-messages-page > header p { margin: 0; color: #94a3b8; }
+.agent-messages-panel { display: flex; flex: 1; min-height: 520px; flex-direction: column; overflow: hidden; border: 1px solid #dce2e8; border-radius: 15px; background: #fff; }
+.agent-message-stream { display: flex; flex: 1; flex-direction: column; gap: 14px; overflow-y: auto; padding: 18px; background: #fbfcfd; }
+.agent-message-stream article { width: fit-content; max-width: min(440px, 75%); padding: 13px 17px; border-radius: 18px; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.06); }
+.agent-message-stream article.mine { align-self: flex-end; border-bottom-right-radius: 3px; background: #149b90; color: #fff; }
+.agent-message-stream article.admin { align-self: flex-start; border-bottom-left-radius: 3px; }
+.agent-message-stream strong { display: block; margin-bottom: 6px; font-size: 12px; }
+.agent-message-stream p { margin: 0 0 7px; line-height: 1.45; }
+.agent-message-stream time { display: block; color: #94a3b8; font-size: 11px; }
+.agent-message-stream .mine time { color: #d1faf5; }
+.agent-message-stream img { display: block; max-width: 260px; max-height: 220px; margin-bottom: 8px; border-radius: 9px; object-fit: cover; }
+.agent-messages-empty { margin: auto; color: #a1aabd; }
+.agent-messages-panel form { display: grid; grid-template-columns: 42px 1fr 42px; gap: 10px; padding: 15px; border-top: 1px solid #e5e7eb; }
+.agent-messages-panel form > input { min-width: 0; border: 1px solid #d9e0e8; border-radius: 10px; padding: 0 15px; font: inherit; outline: none; }
+.agent-messages-panel form > input:focus { border-color: #149b90; }
+.agent-messages-panel form button { min-height: 42px; border: 1px solid #d9e0e8; border-radius: 10px; background: #fff; color: #64748b; cursor: pointer; }
+.agent-messages-panel form button:last-child { border-color: #149b90; background: #149b90; color: white; font-size: 18px; }
+.agent-messages-panel form button:disabled { opacity: .45; cursor: default; }
+@media (max-width: 720px) {
+  .agent-messages-page { padding: 24px 14px 14px; }
+  .agent-messages-panel { min-height: 480px; }
+  .agent-message-stream article { max-width: 85%; }
+}

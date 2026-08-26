@@ -1,30 +1,54 @@
+// 8Pk2pehls6mlL8a2
+// VITE_SUPABASE_URL=https://kyqosemmgbdbqzvdbsds.supabase.co
+// VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_Hc3JF44DINar_Ov_fRXnpA_fNyjZ8Ij
+
+
 import React, { useEffect, useState } from 'react';
-import AdminLogin from './src/AdminLogin';
-import AdminLayout from './src/AdminLayout';
-import SellerLogin from './src/SellerLogin';
-import SellerPortal from './src/SellerPortal';
-import { adminSupabase, sellerSupabase } from './src/supabase';
+import AdminLogin from './admin/AdminLogin';
+import AdminLayout from './admin/AdminLayout';
+import SellerLogin from './seller/SellerLogin';
+import SellerPortal from './seller/SellerPortal';
+import AgentLogin from './agent/AgentLogin';
+import AgentPortal from './agent/AgentPortal';
+import { adminSupabase, agentSupabase, sellerSupabase } from './shared/supabase';
 
 export default function App() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [isSellerLoggedIn, setIsSellerLoggedIn] = useState(false);
+  const [isAgentLoggedIn, setIsAgentLoggedIn] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+  const [previewMerchant, setPreviewMerchant] = useState(null);
   const currentPath = window.location.pathname.toLowerCase();
   const isSellerPortal = currentPath === '/seller' || currentPath.startsWith('/seller/');
+  const isAgentPortal = currentPath === '/agent' || currentPath.startsWith('/agent/');
 
   useEffect(() => {
-    const client = isSellerPortal ? sellerSupabase : adminSupabase;
-    client.auth.getSession().then(({ data }) => {
+    if (isSellerPortal && new URLSearchParams(window.location.search).has('previewMerchant')) {
+      try { setPreviewMerchant(JSON.parse(sessionStorage.getItem('marketplace-merchant-preview') || 'null')); } catch { setPreviewMerchant(null); }
+      setAuthLoading(false);
+      return;
+    }
+    const client = isSellerPortal ? sellerSupabase : isAgentPortal ? agentSupabase : adminSupabase;
+    client.auth.getSession().then(async ({ data }) => {
       if (isSellerPortal) setIsSellerLoggedIn(Boolean(data.session));
+      else if (isAgentPortal && data.session) {
+        const { data: profile } = await agentSupabase.from('profiles').select('role').eq('id', data.session.user.id).maybeSingle();
+        setIsAgentLoggedIn(profile?.role === 'agent');
+      }
       else setIsAdminLoggedIn(Boolean(data.session));
       setAuthLoading(false);
     });
-    const { data: listener } = client.auth.onAuthStateChange((_event, session) => {
-      if (isSellerPortal) setIsSellerLoggedIn(Boolean(session));
-      else setIsAdminLoggedIn(Boolean(session));
+    const { data: listener } = client.auth.onAuthStateChange((event, session) => {
+      if (isSellerPortal) {
+        setIsSellerLoggedIn(Boolean(session));
+      } else if (isAgentPortal) {
+        if (event === 'SIGNED_OUT') setIsAgentLoggedIn(false);
+      } else {
+        setIsAdminLoggedIn(Boolean(session));
+      }
     });
     return () => listener.subscription.unsubscribe();
-  }, [isSellerPortal]);
+  }, [isAgentPortal, isSellerPortal]);
 
   const handleAdminLoginSuccess = () => {
     setIsAdminLoggedIn(true);
@@ -40,9 +64,15 @@ export default function App() {
   if (authLoading) return <><div style={{minHeight:'100vh',display:'grid',placeItems:'center',fontFamily:'Segoe UI'}}>Loading…</div>{demoBadge}</>;
 
   if (isSellerPortal) {
-    return <>{isSellerLoggedIn
-      ? <SellerPortal onLogout={async () => { await sellerSupabase.auth.signOut(); setIsSellerLoggedIn(false); }} />
+    return <>{(isSellerLoggedIn || previewMerchant)
+      ? <SellerPortal previewMerchant={previewMerchant} onLogout={async () => { if (previewMerchant) { sessionStorage.removeItem('marketplace-merchant-preview'); window.location.assign('/agent'); return; } await sellerSupabase.auth.signOut(); setIsSellerLoggedIn(false); }} />
       : <SellerLogin onLoginSuccess={() => setIsSellerLoggedIn(true)} />}{demoBadge}</>;
+  }
+
+  if (isAgentPortal) {
+    return <>{isAgentLoggedIn
+      ? <AgentPortal onLogout={async () => { await agentSupabase.auth.signOut(); setIsAgentLoggedIn(false); }} />
+      : <AgentLogin onLoginSuccess={() => setIsAgentLoggedIn(true)} />}{demoBadge}</>;
   }
 
   return (

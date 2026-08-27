@@ -23,25 +23,6 @@ export default function AgentLogin({ onLoginSuccess }) {
       return;
     }
 
-    const { data: profile, error: profileError } = await agentSupabase
-      .from("profiles")
-      .select("role")
-      .eq("id", data.user.id)
-      .maybeSingle();
-
-    console.log("AGENT LOGIN DEBUG:", {
-      profile,
-      profileError,
-      userId: data.user.id,
-    });
-
-    if (profileError || profile?.role !== "agent") {
-      await agentSupabase.auth.signOut();
-      setError("This account does not have agent access.");
-      setSubmitting(false);
-      return;
-    }
-
     onLoginSuccess();
   };
 

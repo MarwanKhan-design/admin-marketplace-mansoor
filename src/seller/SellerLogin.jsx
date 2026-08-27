@@ -16,9 +16,6 @@ export default function SellerLogin({ onLoginSuccess }) {
     setSubmitting(true); setError('');
     const { data, error: authError } = await sellerSupabase.auth.signInWithPassword({ email, password });
     if (authError) { setError(authError.message); setSubmitting(false); return; }
-    const { data: profile } = await sellerSupabase.from('profiles').select('role,allow_login,shop_locked').eq('id', data.user.id).single();
-    if (!['seller','agent'].includes(profile?.role)) { await sellerSupabase.auth.signOut(); setError('This account does not have seller access.'); setSubmitting(false); return; }
-    if (profile?.allow_login === false) { await sellerSupabase.auth.signOut(); setError('This account has been locked. Contact your administrator.'); setSubmitting(false); return; }
     onLoginSuccess();
   };
 

@@ -3093,14 +3093,16 @@ const demoManagedOrders = [
 ];
 
 function useLiveAgentOrders() {
+
   const [orders, setOrders] = useState(demoManagedOrders);
   const load = React.useCallback(async () => {
     const { data, error } = await agentSupabase
-      .from("orders")
-      .select(
-        "*,seller:profiles!orders_seller_id_fkey(display_name,email),product:products!orders_product_id_fkey(product_code,name)",
-      )
-      .order("created_at", { ascending: false });
+    .from("orders")
+    .select(
+      "*,seller:profiles!orders_seller_id_profiles_fkey(display_name,email)",
+    )
+    .order("created_at", { ascending: false });
+    if (error) console.log("ORDERS LOAD ERROR:", error);
     if (!error && data)
       setOrders(
         data.map((row) => ({
@@ -3108,17 +3110,19 @@ function useLiveAgentOrders() {
           id: row.order_no,
           seller: row.seller?.display_name || row.seller?.email || "Seller",
           sellerId: row.seller_id,
-          product: row.product?.product_code || row.product_name,
+          product: row.product_name,
           customer: row.customer_name || "Customer",
           qty: Number(row.quantity || 1),
           sale: Number(row.sell_price || 0) * Number(row.quantity || 1),
           profit:
-            (Number(row.sell_price || 0) - Number(row.cost_price || 0)) *
+          (Number(row.sell_price || 0) - Number(row.cost_price || 0)) *
             Number(row.quantity || 1),
-          status: row.status,
-          date: new Date(row.created_at).toLocaleString(),
-        })),
-      );
+            status: row.status,
+            date: new Date(row.created_at).toLocaleString(),
+          })),
+        );
+        // Temporary Code
+        
   }, []);
   useEffect(() => {
     load();
@@ -3154,7 +3158,7 @@ function AgentOrderManagement() {
     (order) =>
       groups[tab].includes(order.status) &&
       [order.id, order.product, order.seller, order.customer].some((value) =>
-        value.toLowerCase().includes(search.toLowerCase()),
+        String(value || "").toLowerCase().includes(search.toLowerCase()),
       ),
   );
   const changeStatus = async (id, status) => {
@@ -3226,8 +3230,8 @@ function AgentOrderManagement() {
               ${order.profit.toFixed(2)}
             </strong>
             <select
-              className={`status-${order.status.toLowerCase().replace(" ", "-")}`}
-              value={order.status}
+              className={`status-${String(order.status || "").toLowerCase().replace(" ", "-")}`}
+              value={order.status || ""}
               onChange={(event) => changeStatus(order.id, event.target.value)}
             >
               {groups[tab].map((status) => (

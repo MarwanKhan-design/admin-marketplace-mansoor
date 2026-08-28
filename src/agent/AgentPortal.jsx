@@ -550,14 +550,8 @@ function AgentRechargeOrders() {
   const [search, setSearch] = useState("");
   const [merchantFilter, setMerchantFilter] = useState("All merchants");
   const [statusFilter, setStatusFilter] = useState("All statuses");
-  const [showRecharge, setShowRecharge] = useState(false);
   const [showMethod, setShowMethod] = useState(false);
-  const [recharge, setRecharge] = useState({
-    merchant: "Demo Merchant 1",
-    amount: "",
-    method: "manual",
-    note: "",
-  });
+  const [busy, setBusy] = useState(false);
   const [method, setMethod] = useState({
     name: "",
     type: "Bank Transfer",
@@ -567,91 +561,95 @@ function AgentRechargeOrders() {
     routing: "",
     order: 0,
   });
-  useEffect(() => {
-    try {
-      setOrders(
-        JSON.parse(localStorage.getItem("agent_demo_recharges") || "[]"),
-      );
-      setMethods(
-        JSON.parse(localStorage.getItem("agent_demo_payment_methods") || "[]"),
-      );
-    } catch {
-      /* use empty demo data */
-    }
-  }, []);
-  const saveOrders = (next) => {
-    setOrders(next);
-    localStorage.setItem("agent_demo_recharges", JSON.stringify(next));
+
+  const load = async () => {
+    const { data } = await agentSupabase
+      .from("recharge_requests")
+      .select("*,seller:profiles!recharge_requests_seller_id_fkey(display_name,email)")
+      .order("created_at", { ascending: false });
+    setOrders(
+      (data || []).map((row) => ({
+        id: row.id,
+        merchant: row.seller?.display_name || row.seller?.email || "Seller",
+        sellerId: row.seller_id,
+        amount: Number(row.amount),
+        status: row.status,
+        date: new Date(row.created_at).toLocaleString(),
+      })),
+    );
   };
+
+  useEffect(() => {
+    load();
+    try {
+      setMethods(JSON.parse(localStorage.getItem("agent_demo_payment_methods") || "[]"));
+    } catch {
+      /* ignore */
+    }
+    const channel = agentSupabase
+      .channel("agent-recharge-requests")
+      .on("postgres_changes", { event: "*", schema: "public", table: "recharge_requests" }, load)
+      .subscribe();
+    return () => agentSupabase.removeChannel(channel);
+  }, []);
+
   const saveMethods = (next) => {
     setMethods(next);
     localStorage.setItem("agent_demo_payment_methods", JSON.stringify(next));
-  };
-  const createRecharge = (event) => {
-    event.preventDefault();
-    const next = [
-      {
-        id: `DEMO-RC-${Date.now().toString().slice(-6)}`,
-        ...recharge,
-        amount: Number(recharge.amount),
-        status: "Completed",
-        date: new Date().toLocaleString(),
-      },
-      ...orders,
-    ];
-    saveOrders(next);
-    setShowRecharge(false);
-    setRecharge({
-      merchant: "Demo Merchant 1",
-      amount: "",
-      method: "manual",
-      note: "",
-    });
   };
   const createMethod = (event) => {
     event.preventDefault();
     saveMethods([...methods, { id: Date.now(), ...method }]);
     setShowMethod(false);
-    setMethod({
-      name: "",
-      type: "Bank Transfer",
-      bank: "",
-      accountName: "",
-      accountNumber: "",
-      routing: "",
-      order: 0,
-    });
+    setMethod({ name: "", type: "Bank Transfer", bank: "", accountName: "", accountNumber: "", routing: "", order: 0 });
   };
+
+  const approveRequest = async (order) => {
+    setBusy(true);
+    const { error: updateError } = await agentSupabase
+      .from("recharge_requests")
+      .update({ status: "Approved", reviewed_at: new Date().toISOString() })
+      .eq("id", order.id);
+    if (!updateError) {
+      await agentSupabase.from("wallet_transactions").insert({
+        seller_id: order.sellerId,
+        type: "Agent Credit",
+        amount: order.amount,
+        note: `Recharge request #${order.id} approved`,
+      });
+    }
+    setBusy(false);
+    await load();
+  };
+  const rejectRequest = async (order) => {
+    setBusy(true);
+    await agentSupabase
+      .from("recharge_requests")
+      .update({ status: "Rejected", reviewed_at: new Date().toISOString() })
+      .eq("id", order.id);
+    setBusy(false);
+    await load();
+  };
+
   const visible = orders.filter(
     (item) =>
-      (merchantFilter === "All merchants" ||
-        item.merchant === merchantFilter) &&
+      (merchantFilter === "All merchants" || item.merchant === merchantFilter) &&
       (statusFilter === "All statuses" || item.status === statusFilter) &&
-      [item.id, item.merchant, item.note].some((value) =>
-        String(value || "")
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-      ),
+      String(item.merchant || "").toLowerCase().includes(search.toLowerCase()),
   );
+  const merchantNames = [...new Set(orders.map((item) => item.merchant))];
+
   return (
     <div className="agent-recharge-page">
       <header>
         <h2>Recharge Orders</h2>
-        <p>Manage merchant recharge requests and payment channels.</p>
+        <p>Review and approve merchant recharge requests.</p>
       </header>
       <nav className="agent-recharge-tabs">
-        <button
-          type="button"
-          className={tab === "requests" ? "active" : ""}
-          onClick={() => setTab("requests")}
-        >
+        <button type="button" className={tab === "requests" ? "active" : ""} onClick={() => setTab("requests")}>
           Recharge Requests
         </button>
-        <button
-          type="button"
-          className={tab === "methods" ? "active" : ""}
-          onClick={() => setTab("methods")}
-        >
+        <button type="button" className={tab === "methods" ? "active" : ""} onClick={() => setTab("methods")}>
           ⚙ Payment Methods
         </button>
       </nav>
@@ -660,52 +658,42 @@ function AgentRechargeOrders() {
           <div className="agent-recharge-tools">
             <label>
               <span>⌕</span>
-              <input
-                placeholder="Search no / merchant / note"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
+              <input placeholder="Search merchant" value={search} onChange={(event) => setSearch(event.target.value)} />
             </label>
-            <select
-              value={merchantFilter}
-              onChange={(event) => setMerchantFilter(event.target.value)}
-            >
+            <select value={merchantFilter} onChange={(event) => setMerchantFilter(event.target.value)}>
               <option>All merchants</option>
-              <option>Demo Merchant 1</option>
-              <option>Demo Merchant 2</option>
-              <option>Demo Merchant 3</option>
+              {merchantNames.map((name) => (
+                <option key={name}>{name}</option>
+              ))}
             </select>
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
               <option>All statuses</option>
-              <option>Completed</option>
               <option>Pending</option>
+              <option>Approved</option>
+              <option>Rejected</option>
             </select>
-            <button type="button" disabled>
-              ⇩ Export
-            </button>
-            <button
-              type="button"
-              className="new"
-              onClick={() => setShowRecharge(true)}
-            >
-              ＋ New Recharge
-            </button>
           </div>
           <section className="agent-recharge-list">
             {visible.map((item) => (
               <article key={item.id}>
-                <code>{item.id}</code>
+                <code>#{item.id}</code>
                 <strong>{item.merchant}</strong>
                 <span>${item.amount.toFixed(2)}</span>
-                <span>{item.method}</span>
                 <em>{item.status}</em>
                 <time>{item.date}</time>
+                {item.status === "Pending" && (
+                  <span>
+                    <button type="button" disabled={busy} onClick={() => approveRequest(item)}>
+                      ✓ Approve
+                    </button>
+                    <button type="button" disabled={busy} onClick={() => rejectRequest(item)}>
+                      × Reject
+                    </button>
+                  </span>
+                )}
               </article>
             ))}
-            {!visible.length && <p>No recharge orders yet.</p>}
+            {!visible.length && <p>No recharge requests found.</p>}
           </section>
         </>
       ) : (
@@ -713,10 +701,7 @@ function AgentRechargeOrders() {
           <header>
             <div>
               <h3>Configured Payment Channels</h3>
-              <p>
-                Sellers will see these methods and their demo account details
-                when requesting a recharge.
-              </p>
+              <p>Sellers will see these methods and their demo account details when requesting a recharge.</p>
             </div>
             <button type="button" onClick={() => setShowMethod(true)}>
               ＋ Add Method
@@ -728,15 +713,8 @@ function AgentRechargeOrders() {
                 <strong>{item.name}</strong>
                 <span>{item.type}</span>
               </div>
-              <p>
-                {item.bank || "Demo payment channel"} · Account details hidden
-              </p>
-              <button
-                type="button"
-                onClick={() =>
-                  saveMethods(methods.filter((entry) => entry.id !== item.id))
-                }
-              >
+              <p>{item.bank || "Demo payment channel"} · Account details hidden</p>
+              <button type="button" onClick={() => saveMethods(methods.filter((entry) => entry.id !== item.id))}>
                 Remove
               </button>
             </article>
@@ -744,110 +722,23 @@ function AgentRechargeOrders() {
           {!methods.length && (
             <div className="agent-method-empty">
               No payment methods configured yet.
-              <small>
-                Add at least one demo method to preview the seller experience.
-              </small>
+              <small>Add at least one demo method to preview the seller experience.</small>
             </div>
           )}
         </section>
       )}
-      {showRecharge && (
-        <div
-          className="agent-recharge-overlay"
-          onMouseDown={(event) =>
-            event.target === event.currentTarget && setShowRecharge(false)
-          }
-        >
-          <form className="agent-recharge-modal" onSubmit={createRecharge}>
-            <h3>Direct Recharge (Agent)</h3>
-            <label>
-              Merchant
-              <select
-                value={recharge.merchant}
-                onChange={(event) =>
-                  setRecharge({ ...recharge, merchant: event.target.value })
-                }
-              >
-                <option>Demo Merchant 1</option>
-                <option>Demo Merchant 2</option>
-                <option>Demo Merchant 3</option>
-              </select>
-            </label>
-            <label>
-              Amount (USD)
-              <input
-                required
-                min="1"
-                step="0.01"
-                type="number"
-                placeholder="100.00"
-                value={recharge.amount}
-                onChange={(event) =>
-                  setRecharge({ ...recharge, amount: event.target.value })
-                }
-              />
-            </label>
-            <label>
-              Method
-              <select
-                value={recharge.method}
-                onChange={(event) =>
-                  setRecharge({ ...recharge, method: event.target.value })
-                }
-              >
-                <option>manual</option>
-                <option>bank transfer</option>
-                <option>crypto</option>
-                <option>other</option>
-              </select>
-            </label>
-            <label>
-              Note
-              <textarea
-                value={recharge.note}
-                onChange={(event) =>
-                  setRecharge({ ...recharge, note: event.target.value })
-                }
-              />
-            </label>
-            <footer>
-              <button type="button" onClick={() => setShowRecharge(false)}>
-                Cancel
-              </button>
-              <button type="submit">Recharge Now</button>
-            </footer>
-          </form>
-        </div>
-      )}
       {showMethod && (
-        <div
-          className="agent-recharge-overlay"
-          onMouseDown={(event) =>
-            event.target === event.currentTarget && setShowMethod(false)
-          }
-        >
+        <div className="agent-recharge-overlay" onMouseDown={(event) => event.target === event.currentTarget && setShowMethod(false)}>
           <form className="agent-method-modal" onSubmit={createMethod}>
             <h3>New Payment Method</h3>
             <div className="agent-method-fields">
               <label>
                 Method Name *
-                <input
-                  required
-                  placeholder="e.g. Bank Transfer — Demo"
-                  value={method.name}
-                  onChange={(event) =>
-                    setMethod({ ...method, name: event.target.value })
-                  }
-                />
+                <input required placeholder="e.g. Bank Transfer — Demo" value={method.name} onChange={(event) => setMethod({ ...method, name: event.target.value })} />
               </label>
               <label>
                 Type
-                <select
-                  value={method.type}
-                  onChange={(event) =>
-                    setMethod({ ...method, type: event.target.value })
-                  }
-                >
+                <select value={method.type} onChange={(event) => setMethod({ ...method, type: event.target.value })}>
                   <option>Bank Transfer</option>
                   <option>Crypto</option>
                   <option>Other</option>
@@ -856,54 +747,23 @@ function AgentRechargeOrders() {
               <h4>Account Details</h4>
               <label className="wide">
                 Bank Name
-                <input
-                  placeholder="e.g. Demo Bank"
-                  value={method.bank}
-                  onChange={(event) =>
-                    setMethod({ ...method, bank: event.target.value })
-                  }
-                />
+                <input placeholder="e.g. Demo Bank" value={method.bank} onChange={(event) => setMethod({ ...method, bank: event.target.value })} />
               </label>
               <label className="wide">
                 Account Name
-                <input
-                  placeholder="e.g. Demo Account"
-                  value={method.accountName}
-                  onChange={(event) =>
-                    setMethod({ ...method, accountName: event.target.value })
-                  }
-                />
+                <input placeholder="e.g. Demo Account" value={method.accountName} onChange={(event) => setMethod({ ...method, accountName: event.target.value })} />
               </label>
               <label className="wide">
                 Account Number
-                <input
-                  placeholder="Hidden in this public demo"
-                  value={method.accountNumber}
-                  onChange={(event) =>
-                    setMethod({ ...method, accountNumber: event.target.value })
-                  }
-                />
+                <input placeholder="Hidden in this public demo" value={method.accountNumber} onChange={(event) => setMethod({ ...method, accountNumber: event.target.value })} />
               </label>
               <label className="wide">
                 Routing / SWIFT
-                <input
-                  placeholder="Demo routing code"
-                  value={method.routing}
-                  onChange={(event) =>
-                    setMethod({ ...method, routing: event.target.value })
-                  }
-                />
+                <input placeholder="Demo routing code" value={method.routing} onChange={(event) => setMethod({ ...method, routing: event.target.value })} />
               </label>
               <label>
                 Display Order
-                <input
-                  type="number"
-                  min="0"
-                  value={method.order}
-                  onChange={(event) =>
-                    setMethod({ ...method, order: event.target.value })
-                  }
-                />
+                <input type="number" min="0" value={method.order} onChange={(event) => setMethod({ ...method, order: event.target.value })} />
                 <small>Lower = shown first to sellers</small>
               </label>
             </div>

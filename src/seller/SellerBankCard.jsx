@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import './SellerBankCard.css';
-import { sellerSupabase } from '../shared/supabase';
 
 const loadBankCard = () => {
   try {
@@ -10,7 +9,7 @@ const loadBankCard = () => {
   }
 };
 
-export default function SellerBankCard({ onBack }) {
+export default function SellerBankCard({ client, sellerId, onBack }) {
   const saved = loadBankCard();
   const [form, setForm] = useState({
     name: saved.name || 'Khan',
@@ -27,8 +26,7 @@ export default function SellerBankCard({ onBack }) {
     event.preventDefault();
     const { tradePassword, ...bankCard } = form;
     localStorage.setItem('seller_bank_card', JSON.stringify(bankCard));
-    const { data: auth } = await sellerSupabase.auth.getUser();
-    await sellerSupabase.from('payment_methods').upsert({seller_id:auth.user.id,method_type:'bank_card',details:bankCard,updated_at:new Date().toISOString()},{onConflict:'seller_id,method_type'});
+    if (client && sellerId) await client.from('payment_methods').upsert({seller_id:sellerId,method_type:'bank_card',details:bankCard,updated_at:new Date().toISOString()},{onConflict:'seller_id,method_type'});
     setNotice('Bank card successfully bound.');
     setForm((current) => ({ ...current, tradePassword: '' }));
     window.setTimeout(() => setNotice(''), 2200);

@@ -13,8 +13,10 @@ import {
   agentSupabase,
   sellerSupabase,
 } from "../shared/supabase";
+import { translations } from "./translations";
 
-const periods = ["Today", "This Week", "This Month", "Total"];
+const periodKeys = ["today", "thisWeek", "thisMonth", "total"];
+const periodLabels = ["Today", "This Week", "This Month", "Total"];
 const faqs = [
   [
     "What is the MarketHub online store?",
@@ -40,6 +42,8 @@ const faqs = [
 
 export default function SellerPortal({ onLogout, previewMerchant = null }) {
   const [period, setPeriod] = useState("Today");
+  const [language, setLanguage] = useState("en");
+  const t = translations[language] || translations.en;
   const [openFaq, setOpenFaq] = useState(null);
   const [shopName, setShopName] = useState(previewMerchant?.name || "My Shop");
   const [shopNameDraft, setShopNameDraft] = useState(
@@ -88,10 +92,10 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
         .select("id", { count: "exact" })
         .eq("seller_id", id),
     ]);
-    console.log("SELLER DASHBOARD LOAD:", { id, ordersRes, clicksRes, profileRes });
     if (profileRes.data) {
       setProfile(profileRes.data);
       setShopName(profileRes.data.display_name || shopName);
+      if (profileRes.data.language) setLanguage(profileRes.data.language);
     }
     setOrders(ordersRes.data || []);
     setClickCount(clicksRes.count || clicksRes.data?.length || 0);
@@ -201,6 +205,13 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
     return buckets.map((value) => ({ value, heightPct: Math.round((value / max) * 100) }));
   }, [orders]);
 
+  const toggleLanguage = async () => {
+    const next = language === "en" ? "ur" : "en";
+    setLanguage(next);
+    if (sellerId && portalClient)
+      await portalClient.from("profiles").update({ language: next }).eq("id", sellerId);
+  };
+
   const saveShopName = async (event) => {
     event.preventDefault();
     const nextName = shopNameDraft.trim();
@@ -280,7 +291,7 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
           <button type="button" onClick={onLogout} aria-label="Sign out">
             ↪
           </button>
-          <h1>MarketHub Seller Center</h1>
+          <h1>{t.sellerCenter}</h1>
           <div>
             <button
               type="button"
@@ -289,8 +300,8 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
             >
               ◌
             </button>
-            <button type="button" aria-label="Language">
-              ◎
+            <button type="button" onClick={toggleLanguage} aria-label="Language" title={language === "en" ? "اردو" : "English"}>
+              {language === "en" ? "EN" : "UR"}
             </button>
           </div>
         </header>
@@ -320,15 +331,15 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
             type="button"
             onClick={() => setSellerView("wallet")}
           >
-            Wallet
+            {t.wallet}
           </button>
         </section>
         <nav className="seller-primary-links">
           <button type="button" onClick={() => setSellerView("showcase")}>
-            ▣ <strong>Showcase</strong>
+            ▣ <strong>{t.showcase}</strong>
           </button>
           <button type="button" onClick={() => setSellerView("orders")}>
-            ▤ <strong>Orders</strong>
+            ▤ <strong>{t.orders}</strong>
           </button>
         </nav>
         <section className="seller-traffic-banner">
@@ -345,34 +356,37 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
           <i />
         </section>
         <div className="seller-period-tabs">
-          {periods.map((item) => (
-            <button
-              type="button"
-              key={item}
-              className={period === item ? "active" : ""}
-              onClick={() => setPeriod(item)}
-            >
-              {item}
-            </button>
-          ))}
+          {periodKeys.map((key, index) => {
+            const label = periodLabels[index];
+            return (
+              <button
+                type="button"
+                key={label}
+                className={period === label ? "active" : ""}
+                onClick={() => setPeriod(label)}
+              >
+                {t[key]}
+              </button>
+            );
+          })}
         </div>
         <section className="seller-metrics">
-          <h2>Key Metrics</h2>
+          <h2>{t.keyMetrics}</h2>
           <div className="seller-metric-grid">
             <article className="sales-card">
-              <span>Total Sales</span>
+              <span>{t.totalSales}</span>
               <strong>${metrics.sales.toFixed(2)}</strong>
             </article>
             <article>
-              <span>Expected Profit</span>
+              <span>{t.expectedProfit}</span>
               <strong>${metrics.profit.toFixed(2)}</strong>
             </article>
             <article>
-              <span>Order Quantity</span>
+              <span>{t.orderQuantity}</span>
               <strong>{metrics.quantity}</strong>
             </article>
             <article>
-              <span>Product Clicks</span>
+              <span>{t.productClicks}</span>
               <strong>{clickCount.toLocaleString()}</strong>
             </article>
           </div>

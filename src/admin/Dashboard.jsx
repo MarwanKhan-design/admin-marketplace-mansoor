@@ -1,67 +1,291 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import './Dashboard.css';
 import { adminSupabase } from '../shared/supabase';
 
-export default function Dashboard({ onOpenMerchants }) {
+const TREND_DAYS = 30;
+const CHART_WIDTH = 1200;
+const CHART_HEIGHT = 230;
 
-  const [recentUsers, setRecentUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+const emptyStats = {
+  totalSellers: 0,
+  pendingApplications: 0,
+  approvedSellers: 0,
+  rejectedSellers: 0,
+  totalUsers: 0,
+  usersToday: 0,
+  totalRecharge: 0,
+  rechargeToday: 0,
+  totalWithdraw: 0,
+  withdrawToday: 0,
+  pendingWithdraw: 0,
+  myUsers: 0,
+  myUsersToday: 0,
+  myRecharge: 0,
+  myRechargeToday: 0,
+  pendingFeedback: 0,
+  pendingKyc: 0,
+  pendingRecharge: 0,
+};
 
-  const [stats, setStats] = useState({
-    totalSellers: 0, pendingApplications: 0, approvedSellers: 0, rejectedSellers: 0,
-    totalUsers: 0, totalRecharge: 0, totalWithdraw: 0, pendingWithdraw: 0,
-    myUsers: 0, myRecharge: 0, pendingFeedback: 0,
+const fetchRows = async (table, columns) => {
+  if (!adminSupabase) return [];
+  const { data, error } = await adminSupabase.from(table).select(columns);
+  return error ? [] : data || [];
+};
+
+const isSameLocalDay = (value, now = new Date()) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  );
+};
+
+const dayKey = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const lastNDayKeys = (count) => {
+  const keys = [];
+  const cursor = new Date();
+  cursor.setHours(12, 0, 0, 0);
+  for (let offset = count - 1; offset >= 0; offset -= 1) {
+    const date = new Date(cursor);
+    date.setDate(cursor.getDate() - offset);
+    keys.push(dayKey(date));
+  }
+  return keys;
+};
+
+const isRechargeTxn = (row) => {
+  const amount = Number(row.amount || 0);
+  if (amount <= 0) return false;
+  return !/debit|withdraw/i.test(String(row.type || ''));
+};
+
+const money = (value) => Number(value || 0).toFixed(2);
+
+const formatAxisTick = (value, moneyScale) => {
+  const amount = Number(value) || 0;
+  if (!moneyScale) return String(Math.round(amount));
+  if (amount >= 1000) return `${(amount / 1000).toFixed(amount >= 10000 ? 0 : 1)}k`;
+  if (Number.isInteger(amount)) return String(amount);
+  return amount.toFixed(amount >= 10 ? 0 : 1);
+};
+
+const axisTicks = (maxValue, moneyScale) => {
+  const max = Math.max(maxValue, moneyScale ? 1 : 1);
+  return Array.from({ length: 5 }, (_, index) =>
+    formatAxisTick((max * (4 - index)) / 4, moneyScale),
+  );
+};
+
+const toSmoothPath = (values, maxValue, width, height) => {
+  const max = Math.max(maxValue, 1);
+  const count = values.length;
+  if (!count) return '';
+  const points = values.map((value, index) => {
+    const x = count === 1 ? 0 : (index / (count - 1)) * width;
+    const y = height - 8 - (Number(value || 0) / max) * (height - 18);
+    return [x, Math.min(height - 2, Math.max(4, y))];
   });
+  if (points.length === 1) return `M${points[0][0]} ${points[0][1]}`;
+  let path = `M${points[0][0]} ${points[0][1]}`;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const prev = points[index === 0 ? index : index - 1];
+    const current = points[index];
+    const next = points[index + 1];
+    const after = points[index + 2] || next;
+    const cp1x = current[0] + (next[0] - prev[0]) / 6;
+    const cp1y = current[1] + (next[1] - prev[1]) / 6;
+    const cp2x = next[0] - (after[0] - current[0]) / 6;
+    const cp2y = next[1] - (after[1] - current[1]) / 6;
+    path += ` C${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${next[0]} ${next[1]}`;
+  }
+  return path;
+};
 
-  useEffect(() => {
-    const load = async () => {
-      const [profilesRes, txnRes, withdrawRes, feedbackRes] = await Promise.all([
-        adminSupabase.from('profiles').select('id,display_name,email,role,agent_id,created_at').order('created_at', { ascending: false }),
-        adminSupabase.from('wallet_transactions').select('amount'),
-        adminSupabase.from('withdrawals').select('amount,status'),
-        adminSupabase.from('feedback_tickets').select('id,status'),
+const trendLabels = (days) => {
+  if (!days.length) return [];
+  const picks = [0, 4, 8, 12, 16, 20, 24, days.length - 1];
+  return picks.map((index) => {
+    const [, month, day] = days[index].split('-');
+    return `${month}-${day}`;
+  });
+};
+
+export default function Dashboard({ onOpenMerchants }) {
+  const [recentUsers, setRecentUsers] = useState([]);
+  const [subAgents, setSubAgents] = useState([]);
+  const [trend, setTrend] = useState({
+    days: lastNDayKeys(TREND_DAYS),
+    registers: Array(TREND_DAYS).fill(0),
+    recharges: Array(TREND_DAYS).fill(0),
+    withdrawals: Array(TREND_DAYS).fill(0),
+    leftMax: 1,
+    rightMax: 1,
+  });
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(emptyStats);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    if (!adminSupabase) {
+      setStats(emptyStats);
+      setRecentUsers([]);
+      setSubAgents([]);
+      setLoading(false);
+      return;
+    }
+
+    const [profilesRes, txnRes, withdrawRes, feedbackRes, rechargeRes, paymentsRes] =
+      await Promise.all([
+        adminSupabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        fetchRows('wallet_transactions', 'amount,type,created_at,seller_id'),
+        fetchRows('withdrawals', 'amount,status,created_at,updated_at'),
+        fetchRows('feedback_tickets', 'id,status'),
+        fetchRows('recharge_requests', 'id,amount,status,created_at'),
+        fetchRows('payment_methods', 'seller_id'),
       ]);
 
-      const profiles = profilesRes.data || [];
-      setRecentUsers(profiles.slice(0, 10).map((row) => ({
-        id: row.id.slice(0, 8).toUpperCase(),
+    const profiles = profilesRes.error ? [] : profilesRes.data || [];
+    const transactions = txnRes;
+    const withdrawals = withdrawRes;
+    const feedback = feedbackRes;
+    const rechargeRequests = rechargeRes;
+    const paymentMethods = paymentsRes;
+
+    const agents = profiles.filter((row) => String(row.role || '').toLowerCase() === 'agent');
+    const sellers = profiles.filter((row) => String(row.role || '').toLowerCase() === 'seller');
+    const agentNameById = Object.fromEntries(
+      agents.map((agent) => [agent.id, agent.display_name || agent.email?.split('@')[0] || 'Agent']),
+    );
+
+    const approvedSellers = sellers.filter((row) => row.allow_login !== false);
+    const rejectedSellers = sellers.filter((row) => row.allow_login === false);
+    const pendingApplications = sellers.filter(
+      (row) => String(row.application_status || '').toLowerCase() === 'pending',
+    ).length;
+
+    const rechargeTxns = transactions.filter(isRechargeTxn);
+    const totalRecharge = rechargeTxns.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const rechargeToday = rechargeTxns
+      .filter((row) => isSameLocalDay(row.created_at))
+      .reduce((sum, row) => sum + Number(row.amount || 0), 0);
+
+    const approvedWithdrawals = withdrawals.filter(
+      (row) => String(row.status || '').toLowerCase() === 'approved',
+    );
+    const totalWithdraw = approvedWithdrawals.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const withdrawToday = approvedWithdrawals
+      .filter((row) => isSameLocalDay(row.updated_at || row.created_at))
+      .reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const pendingWithdraw = withdrawals.filter(
+      (row) => String(row.status || '').toLowerCase() === 'pending',
+    ).length;
+
+    const pendingFeedback = feedback.filter(
+      (row) => String(row.status || '').toLowerCase() === 'open',
+    ).length;
+    const pendingRecharge = rechargeRequests.filter(
+      (row) => String(row.status || '').toLowerCase() === 'pending',
+    ).length;
+    const fundedSellers = new Set(paymentMethods.map((row) => row.seller_id));
+    const pendingKyc = sellers.filter((seller) => !fundedSellers.has(seller.id)).length;
+
+    const usersToday = profiles.filter((row) => isSameLocalDay(row.created_at)).length;
+    const sellersToday = sellers.filter((row) => isSameLocalDay(row.created_at)).length;
+
+    setRecentUsers(
+      profiles.slice(0, 10).map((row) => ({
+        id: String(row.id || '').slice(0, 8).toUpperCase(),
         store: row.display_name || row.email?.split('@')[0] || 'User',
         email: row.email,
-        agent: row.agent_id || '—',
+        agent: row.agent_id ? agentNameById[row.agent_id] || String(row.agent_id).slice(0, 8) : '—',
         registerTime: new Date(row.created_at).toLocaleString('en-CA', { hour12: false }).replace(',', ''),
-      })));
+      })),
+    );
 
-      const sellers = profiles.filter((row) => row.role === 'seller');
-      const totalRecharge = (txnRes.data || []).filter((row) => Number(row.amount) > 0).reduce((sum, row) => sum + Number(row.amount), 0);
-      const withdrawals = withdrawRes.data || [];
-      const totalWithdraw = withdrawals.filter((row) => row.status === 'Approved').reduce((sum, row) => sum + Number(row.amount), 0);
-      const pendingWithdraw = withdrawals.filter((row) => row.status === 'Pending').length;
-      const pendingFeedback = (feedbackRes.data || []).filter((row) => row.status === 'Open').length;
+    setSubAgents(
+      agents.map((agent) => ({
+        id: agent.id,
+        name: agent.display_name || agent.email?.split('@')[0] || 'Agent',
+        email: agent.email,
+        sellers: sellers.filter((seller) => seller.agent_id === agent.id).length,
+      })),
+    );
 
-      setStats({
-        totalSellers: sellers.length,
-        pendingApplications: 0,
-        approvedSellers: sellers.length,
-        rejectedSellers: 0,
-        totalUsers: profiles.length,
-        totalRecharge,
-        totalWithdraw,
-        pendingWithdraw,
-        myUsers: sellers.length,
-        myRecharge: totalRecharge,
-        pendingFeedback,
-      });
-      setLoading(false);
-    };
-    load();
+    const days = lastNDayKeys(TREND_DAYS);
+    const registerCounts = days.map(() => 0);
+    const rechargeCounts = days.map(() => 0);
+    const withdrawCounts = days.map(() => 0);
+    const indexByDay = Object.fromEntries(days.map((key, index) => [key, index]));
+
+    profiles.forEach((row) => {
+      const index = indexByDay[dayKey(row.created_at)];
+      if (index !== undefined) registerCounts[index] += 1;
+    });
+    rechargeTxns.forEach((row) => {
+      const index = indexByDay[dayKey(row.created_at)];
+      if (index !== undefined) rechargeCounts[index] += Number(row.amount || 0);
+    });
+    approvedWithdrawals.forEach((row) => {
+      const index = indexByDay[dayKey(row.updated_at || row.created_at)];
+      if (index !== undefined) withdrawCounts[index] += Number(row.amount || 0);
+    });
+
+    setTrend({
+      days,
+      registers: registerCounts,
+      recharges: rechargeCounts,
+      withdrawals: withdrawCounts,
+      leftMax: Math.max(...registerCounts, 1),
+      rightMax: Math.max(...rechargeCounts, ...withdrawCounts, 1),
+    });
+
+    setStats({
+      totalSellers: sellers.length,
+      pendingApplications,
+      approvedSellers: approvedSellers.length,
+      rejectedSellers: rejectedSellers.length,
+      totalUsers: profiles.length,
+      usersToday,
+      totalRecharge,
+      rechargeToday,
+      totalWithdraw,
+      withdrawToday,
+      pendingWithdraw,
+      myUsers: sellers.length,
+      myUsersToday: sellersToday,
+      myRecharge: totalRecharge,
+      myRechargeToday: rechargeToday,
+      pendingFeedback,
+      pendingKyc,
+      pendingRecharge,
+    });
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const registerPath = toSmoothPath(trend.registers, trend.leftMax, CHART_WIDTH, CHART_HEIGHT);
+  const rechargePath = toSmoothPath(trend.recharges, trend.rightMax, CHART_WIDTH, CHART_HEIGHT);
+  const withdrawPath = toSmoothPath(trend.withdrawals, trend.rightMax, CHART_WIDTH, CHART_HEIGHT);
 
   return (
     <div className="dashboard-page">
-
-      {/* =====================================================
-          TOP PAGE TABS
-      ===================================================== */}
 
       <div className="dashboard-top-tabs">
 
@@ -72,24 +296,26 @@ export default function Dashboard({ onOpenMerchants }) {
           </button>
 
           <button
-  className="dashboard-tab-button"
-  onClick={onOpenMerchants}
->
-  Merchant List
-</button>
+            className="dashboard-tab-button"
+            onClick={onOpenMerchants}
+          >
+            Merchant List
+          </button>
 
         </div>
 
-        <button className="refresh-button">
-          ↻
+        <button
+          className="refresh-button"
+          type="button"
+          aria-label="Refresh dashboard"
+          onClick={load}
+          disabled={loading}
+        >
+          {loading ? '…' : '↻'}
         </button>
 
       </div>
 
-
-      {/* =====================================================
-          AGENT PERFORMANCE
-      ===================================================== */}
 
       <section className="dashboard-panel">
 
@@ -110,7 +336,7 @@ export default function Dashboard({ onOpenMerchants }) {
             </strong>
 
             <span className="today-text">
-              Today: <b>0</b>
+              Today: <b>{stats.myUsersToday}</b>
             </span>
 
           </div>
@@ -123,19 +349,17 @@ export default function Dashboard({ onOpenMerchants }) {
             </span>
 
             <strong className="performance-value">
-              {stats.myRecharge.toFixed(2)}
+              {money(stats.myRecharge)}
             </strong>
 
             <span className="today-text">
-              Today: 0
+              Today: {money(stats.myRechargeToday)}
             </span>
 
           </div>
 
         </div>
 
-
-        {/* SUB AGENTS */}
 
         <div className="sub-agent-section">
 
@@ -143,26 +367,36 @@ export default function Dashboard({ onOpenMerchants }) {
             Sub Agents
           </h3>
 
-          <div className="empty-sub-agents">
-
-            <div className="empty-user-icon">
-              ♙♙
+          {subAgents.length ? (
+            <div className="sub-agent-list">
+              {subAgents.map((agent) => (
+                <div className="sub-agent-row" key={agent.id}>
+                  <div>
+                    <strong>{agent.name}</strong>
+                    <span>{agent.email}</span>
+                  </div>
+                  <em>{agent.sellers} seller{agent.sellers === 1 ? '' : 's'}</em>
+                </div>
+              ))}
             </div>
+          ) : (
+            <div className="empty-sub-agents">
 
-            <span>
-              No sub agents
-            </span>
+              <div className="empty-user-icon">
+                ♙♙
+              </div>
 
-          </div>
+              <span>
+                {loading ? 'Loading agents…' : 'No sub agents'}
+              </span>
+
+            </div>
+          )}
 
         </div>
 
       </section>
 
-
-      {/* =====================================================
-          SELLER STATS
-      ===================================================== */}
 
       <div className="seller-stat-grid">
 
@@ -220,10 +454,6 @@ export default function Dashboard({ onOpenMerchants }) {
       </div>
 
 
-      {/* =====================================================
-          FINANCE STATS
-      ===================================================== */}
-
       <div className="finance-stat-grid">
 
         <div className="finance-stat-card">
@@ -237,7 +467,7 @@ export default function Dashboard({ onOpenMerchants }) {
           </strong>
 
           <span className="today-text">
-            Today: 0
+            Today: {stats.usersToday}
           </span>
 
         </div>
@@ -250,11 +480,11 @@ export default function Dashboard({ onOpenMerchants }) {
           </span>
 
           <strong className="green-number">
-            {stats.totalRecharge.toFixed(2)}
+            {money(stats.totalRecharge)}
           </strong>
 
           <span className="today-text">
-            Today: 0
+            Today: {money(stats.rechargeToday)}
           </span>
 
         </div>
@@ -267,19 +497,17 @@ export default function Dashboard({ onOpenMerchants }) {
           </span>
 
           <strong className="orange-number">
-            {stats.totalWithdraw.toFixed(2)}
+            {money(stats.totalWithdraw)}
           </strong>
 
           <span className="today-text">
-            Today: 0
+            Today: {money(stats.withdrawToday)}
           </span>
 
         </div>
 
       </div>
 
-
-      {/* PENDING WITHDRAW */}
 
       <div className="pending-withdraw-card">
 
@@ -294,10 +522,6 @@ export default function Dashboard({ onOpenMerchants }) {
       </div>
 
 
-      {/* =====================================================
-          30 DAY TREND
-      ===================================================== */}
-
       <section className="dashboard-panel trend-panel">
 
         <h2 className="dashboard-section-title">
@@ -307,22 +531,14 @@ export default function Dashboard({ onOpenMerchants }) {
 
         <div className="trend-chart-wrapper">
 
-          {/* LEFT Y AXIS */}
-
           <div className="trend-left-axis">
-
-            <span>8</span>
-            <span>6</span>
-            <span>4</span>
-            <span>2</span>
-            <span>0</span>
-
+            {axisTicks(trend.leftMax, false).map((tick, index) => (
+              <span key={`left-${index}`}>{tick}</span>
+            ))}
           </div>
 
 
           <div className="trend-chart">
-
-            {/* GRID */}
 
             <div className="trend-horizontal-line trend-h1"></div>
             <div className="trend-horizontal-line trend-h2"></div>
@@ -339,114 +555,36 @@ export default function Dashboard({ onOpenMerchants }) {
             <div className="trend-vertical-line trend-v7"></div>
 
 
-            {/* CURVES */}
-
             <svg
-              viewBox="0 0 1200 230"
+              viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
               preserveAspectRatio="none"
               className="dashboard-trend-svg"
             >
 
-              {/* Registers - Blue */}
-
-              <path
-                d="
-                M0 225
-                C40 225, 55 210, 75 165
-                C90 120, 105 120, 125 185
-                C145 250, 165 225, 180 175
-                C195 125, 215 120, 235 190
-                C255 250, 300 225, 350 225
-                C420 225, 470 225, 520 225
-                C580 225, 610 205, 640 220
-                C680 240, 700 225, 730 225
-                C760 225, 780 205, 805 215
-                C830 228, 850 225, 875 215
-                C900 205, 930 215, 950 225
-                C1000 225, 1080 225, 1200 225
-                "
-                className="register-curve"
-              />
-
-
-              {/* Recharge - Green */}
-
-              <path
-                d="
-                M0 225
-                C80 225, 130 225, 170 223
-                C205 220, 220 235, 245 225
-                C270 215, 285 180, 315 180
-                C355 180, 395 220, 440 225
-                C470 230, 485 215, 510 220
-                C540 230, 570 225, 600 225
-                C625 225, 645 205, 665 215
-                C690 230, 720 225, 740 225
-                C760 225, 775 205, 790 115
-                C802 45, 820 15, 838 90
-                C850 150, 855 215, 875 225
-                C940 225, 1030 225, 1200 225
-                "
-                className="recharge-curve"
-              />
-
-
-              {/* Withdrawals - Orange */}
-
-              <path
-                d="
-                M0 225
-                C150 225, 190 225, 215 225
-                C235 225, 245 205, 260 160
-                C270 125, 285 50, 305 45
-                C330 45, 365 100, 390 145
-                C410 180, 430 225, 465 225
-                C500 225, 520 225, 545 225
-                C560 225, 575 160, 590 110
-                C605 60, 620 55, 635 110
-                C650 165, 655 225, 680 225
-                C800 225, 980 225, 1200 225
-                "
-                className="withdraw-curve"
-              />
+              <path d={registerPath} className="register-curve" />
+              <path d={rechargePath} className="recharge-curve" />
+              <path d={withdrawPath} className="withdraw-curve" />
 
             </svg>
 
 
-            {/* X AXIS */}
-
             <div className="trend-x-axis">
-
-              <span>07-22</span>
-              <span>07-26</span>
-              <span>07-30</span>
-              <span>08-03</span>
-              <span>08-07</span>
-              <span>08-11</span>
-              <span>08-15</span>
-              <span>08-19</span>
-
+              {trendLabels(trend.days).map((label, index) => (
+                <span key={`x-${index}`}>{label}</span>
+              ))}
             </div>
 
           </div>
 
 
-          {/* RIGHT Y AXIS */}
-
           <div className="trend-right-axis">
-
-            <span>220</span>
-            <span>165</span>
-            <span>110</span>
-            <span>55</span>
-            <span>0</span>
-
+            {axisTicks(trend.rightMax, true).map((tick, index) => (
+              <span key={`right-${index}`}>{tick}</span>
+            ))}
           </div>
 
         </div>
 
-
-        {/* LEGEND */}
 
         <div className="trend-legend">
 
@@ -470,10 +608,6 @@ export default function Dashboard({ onOpenMerchants }) {
       </section>
 
 
-      {/* =====================================================
-          PENDING REVIEW
-      ===================================================== */}
-
       <section className="dashboard-panel">
 
         <h2 className="dashboard-section-title">
@@ -486,7 +620,7 @@ export default function Dashboard({ onOpenMerchants }) {
           <div className="pending-review-card">
 
             <strong className="orange-number">
-              0
+              {stats.pendingKyc}
             </strong>
 
             <span>
@@ -499,7 +633,7 @@ export default function Dashboard({ onOpenMerchants }) {
           <div className="pending-review-card">
 
             <strong className="blue-number">
-              0
+              {stats.pendingRecharge}
             </strong>
 
             <span>
@@ -512,7 +646,7 @@ export default function Dashboard({ onOpenMerchants }) {
           <div className="pending-review-card">
 
             <strong className="red-number">
-              0
+              {stats.pendingWithdraw}
             </strong>
 
             <span>
@@ -538,10 +672,6 @@ export default function Dashboard({ onOpenMerchants }) {
 
       </section>
 
-
-      {/* =====================================================
-          RECENT USERS
-      ===================================================== */}
 
       <section className="dashboard-panel recent-users-panel">
 
@@ -585,7 +715,7 @@ export default function Dashboard({ onOpenMerchants }) {
 
               {recentUsers.map((user) => (
 
-                <tr key={user.id}>
+                <tr key={`${user.id}-${user.email}`}>
 
                   <td>
                     {user.id}
@@ -610,6 +740,10 @@ export default function Dashboard({ onOpenMerchants }) {
                 </tr>
 
               ))}
+
+              {loading && !recentUsers.length && (
+                <tr><td colSpan={5}>Loading users…</td></tr>
+              )}
 
               {!loading && !recentUsers.length && (
                 <tr><td colSpan={5}>No users yet.</td></tr>

@@ -1,80 +1,1103 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import './MerchantActivityModals.css';
+import React, { useEffect, useMemo, useState } from "react";
+import "./MerchantActivityModals.css";
 
-export default function MerchantActivityModals({ client, merchant, action, onClose, onChanged, openAction }) {
-  const [tab, setTab] = useState(action === 'Order' ? 'Orders' : action === 'Manage' ? 'Balance' : 'Overview');
+export default function MerchantActivityModals({
+  client,
+  merchant,
+  action,
+  onClose,
+  onChanged,
+  openAction,
+}) {
+  const [tab, setTab] = useState(
+    action === "Order"
+      ? "Orders"
+      : action === "Manage"
+        ? "Balance"
+        : "Overview",
+  );
   const [orders, setOrders] = useState([]);
   const [txns, setTxns] = useState([]);
   const [locks, setLocks] = useState([]);
   const [clicks, setClicks] = useState([]);
   const [profile, setProfile] = useState(null);
-  const [count, setCount] = useState('');
-  const [source, setSource] = useState('');
-  const [message, setMessage] = useState('');
+  const [showcaseProducts, setShowcaseProducts] = useState([]);
+  const [count, setCount] = useState("");
+  const [source, setSource] = useState("");
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [showOrderForm, setShowOrderForm] = useState(action === 'Order');
-  const [orderSearch, setOrderSearch] = useState('');
-  const [orderStatus, setOrderStatus] = useState('all');
-  const [logSearch, setLogSearch] = useState('');
-  const [logCategory, setLogCategory] = useState('all');
-  const [orderDraft, setOrderDraft] = useState({ product_name: '', customer_name: '', shipping_address: '', quantity: 1, sell_price: '', cost_price: '', status: 'Pending Ship' });
+  const [showOrderForm, setShowOrderForm] = useState(action === "Order");
+  const [orderSearch, setOrderSearch] = useState("");
+  const [orderStatus, setOrderStatus] = useState("all");
+  const [logSearch, setLogSearch] = useState("");
+  const [logCategory, setLogCategory] = useState("all");
+  const [orderDraft, setOrderDraft] = useState({
+    product_id: "",
+    product_name: "",
+    customer_name: "",
+    shipping_address: "",
+    quantity: 1,
+    sell_price: "",
+    cost_price: "",
+    status: "Pending Ship",
+  });
 
   const load = async () => {
     if (!merchant?.userId) return;
-    const [orderRes, txnRes, lockRes, clickRes, profileRes] = await Promise.all([
-      client.from('orders').select('*').eq('seller_id', merchant.userId).order('created_at', { ascending: false }),
-      client.from('wallet_transactions').select('*').eq('seller_id', merchant.userId).order('created_at', { ascending: false }),
-      client.from('balance_locks').select('*').eq('seller_id', merchant.userId).order('created_at', { ascending: false }),
-      client.from('merchant_clicks').select('*').eq('seller_id', merchant.userId).order('created_at', { ascending: false }),
-      client.from('profiles').select('*').eq('id', merchant.userId).maybeSingle(),
-    ]);
-    setOrders(orderRes.data || []); setTxns(txnRes.data || []); setLocks(lockRes.data || []); setClicks(clickRes.data || []); setProfile(profileRes.data || null);
+    const [orderRes, txnRes, lockRes, clickRes, profileRes, showcaseRes] =
+      await Promise.all([
+        client
+          .from("orders")
+          .select("*")
+          .eq("seller_id", merchant.userId)
+          .order("created_at", { ascending: false }),
+        client
+          .from("wallet_transactions")
+          .select("*")
+          .eq("seller_id", merchant.userId)
+          .order("created_at", { ascending: false }),
+        client
+          .from("balance_locks")
+          .select("*")
+          .eq("seller_id", merchant.userId)
+          .order("created_at", { ascending: false }),
+        client
+          .from("merchant_clicks")
+          .select("*")
+          .eq("seller_id", merchant.userId)
+          .order("created_at", { ascending: false }),
+        client
+          .from("profiles")
+          .select("*")
+          .eq("id", merchant.userId)
+          .maybeSingle(),
+        client
+          .from("showcase_products")
+          .select(
+            "on_shelf,products(id,name,product_code,sell_price,cost_price)",
+          )
+          .eq("seller_id", merchant.userId),
+      ]);
+    setOrders(orderRes.data || []);
+    setTxns(txnRes.data || []);
+    setLocks(lockRes.data || []);
+    setClicks(clickRes.data || []);
+    setProfile(profileRes.data || null);
+    setShowcaseProducts(
+      (showcaseRes.data || [])
+        .filter((row) => row.on_shelf && row.products)
+        .map((row) => row.products),
+    );
   };
-  useEffect(() => { load(); setTab(action === 'Order' ? 'Orders' : action === 'Manage' ? 'Balance' : 'Overview'); setShowOrderForm(action === 'Order'); }, [merchant?.userId, action]);
-  const normalizeStatus = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
-  const totals = useMemo(() => ({ revenue: orders.reduce((sum, row) => sum + Number(row.sell_price || row.amount || 0) * Number(row.quantity || 1), 0), profit: orders.reduce((sum, row) => sum + (Number(row.sell_price || 0) - Number(row.cost_price || 0)) * Number(row.quantity || 1), 0), completed: orders.filter((row) => normalizeStatus(row.status) === 'completed').length }), [orders]);
-  const visibleOrders = useMemo(() => orders.filter((row) => {
-    const haystack = [row.order_no, row.product_name, row.customer_name, row.shipping_address, row.status].join(' ').toLowerCase();
-    return (!orderSearch || haystack.includes(orderSearch.toLowerCase())) && (orderStatus === 'all' || row.status === orderStatus);
-  }), [orders, orderSearch, orderStatus]);
+  useEffect(() => {
+    load();
+    setTab(
+      action === "Order"
+        ? "Orders"
+        : action === "Manage"
+          ? "Balance"
+          : "Overview",
+    );
+    setShowOrderForm(action === "Order");
+  }, [merchant?.userId, action]);
+  const normalizeStatus = (value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "_");
+  const totals = useMemo(
+    () => ({
+      revenue: orders.reduce(
+        (sum, row) =>
+          sum +
+          Number(row.sell_price || row.amount || 0) * Number(row.quantity || 1),
+        0,
+      ),
+      profit: orders.reduce(
+        (sum, row) =>
+          sum +
+          (Number(row.sell_price || 0) - Number(row.cost_price || 0)) *
+            Number(row.quantity || 1),
+        0,
+      ),
+      completed: orders.filter(
+        (row) => normalizeStatus(row.status) === "completed",
+      ).length,
+    }),
+    [orders],
+  );
+  const visibleOrders = useMemo(
+    () =>
+      orders.filter((row) => {
+        const haystack = [
+          row.order_no,
+          row.product_name,
+          row.customer_name,
+          row.shipping_address,
+          row.status,
+        ]
+          .join(" ")
+          .toLowerCase();
+        return (
+          (!orderSearch || haystack.includes(orderSearch.toLowerCase())) &&
+          (orderStatus === "all" || row.status === orderStatus)
+        );
+      }),
+    [orders, orderSearch, orderStatus],
+  );
   const activityLogs = useMemo(() => {
-    const clickRows = clicks.map((row) => ({ id: `click-${row.id}`, created_at: row.created_at, category: ['login','logout','order','balance','password','faq','api','automation','account'].includes(String(row.source).toLowerCase()) ? String(row.source).toLowerCase() : 'product click', action: row.source || 'product_click', actor: row.created_by ? 'admin' : 'seller', ip: row.ip_address, device: row.device, details: row.source || 'click' }));
-    const txnRows = txns.map((row) => ({ id: `txn-${row.id}`, created_at: row.created_at, category: 'balance', action: String(row.type || 'balance').toLowerCase().replace(/\s+/g, '_'), actor: 'admin', details: row.note || `$${Number(row.amount || 0).toFixed(2)}` }));
-    const orderRows = orders.map((row) => ({ id: `order-${row.id}`, created_at: row.created_at, category: 'order', action: `order_${normalizeStatus(row.status) || 'created'}`, actor: 'seller', details: `${row.order_no || row.id} · ${row.product_name || 'Order'}` }));
-    return [...clickRows, ...txnRows, ...orderRows].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    const clickRows = clicks.map((row) => ({
+      id: `click-${row.id}`,
+      created_at: row.created_at,
+      category: [
+        "login",
+        "logout",
+        "order",
+        "balance",
+        "password",
+        "faq",
+        "api",
+        "automation",
+        "account",
+      ].includes(String(row.source).toLowerCase())
+        ? String(row.source).toLowerCase()
+        : "product click",
+      action: row.source || "product_click",
+      actor: row.created_by ? "admin" : "seller",
+      ip: row.ip_address,
+      device: row.device,
+      details: row.source || "click",
+    }));
+    const txnRows = txns.map((row) => ({
+      id: `txn-${row.id}`,
+      created_at: row.created_at,
+      category: "balance",
+      action: String(row.type || "balance")
+        .toLowerCase()
+        .replace(/\s+/g, "_"),
+      actor: "admin",
+      details: row.note || `$${Number(row.amount || 0).toFixed(2)}`,
+    }));
+    const orderRows = orders.map((row) => ({
+      id: `order-${row.id}`,
+      created_at: row.created_at,
+      category: "order",
+      action: `order_${normalizeStatus(row.status) || "created"}`,
+      actor: "seller",
+      details: `${row.order_no || row.id} · ${row.product_name || "Order"}`,
+    }));
+    return [...clickRows, ...txnRows, ...orderRows].sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at),
+    );
   }, [clicks, txns, orders]);
-  const visibleLogs = useMemo(() => activityLogs.filter((row) => {
-    const haystack = [row.category,row.action,row.actor,row.ip,row.device,row.details].join(' ').toLowerCase();
-    return (!logSearch || haystack.includes(logSearch.toLowerCase())) && (logCategory === 'all' || row.category === logCategory);
-  }), [activityLogs, logSearch, logCategory]);
-  const addClicks = async (event) => { event.preventDefault(); const numeric = Math.floor(Number(count)); if (!numeric || numeric < 1 || numeric > 10000) return setMessage('Enter a click count from 1 to 10,000.'); setBusy(true); const rows = Array.from({ length: numeric }, () => ({ seller_id: merchant.userId, source: source || 'admin' })); const { error } = await client.from('merchant_clicks').insert(rows); if (!error) await client.from('profiles').update({ traffic_enabled: true }).eq('id', merchant.userId); setBusy(false); if (error) return setMessage(error.message); await load(); onChanged?.(); onClose(); };
-  const createOrder = async (event) => { event.preventDefault(); setBusy(true); const payload = { seller_id: merchant.userId, order_no: `MH${Date.now()}`, product_name: orderDraft.product_name.trim(), customer_name: orderDraft.customer_name.trim(), shipping_address: orderDraft.shipping_address.trim(), quantity: Number(orderDraft.quantity || 1), sell_price: Number(orderDraft.sell_price || 0), cost_price: Number(orderDraft.cost_price || 0), status: orderDraft.status }; const { error } = await client.from('orders').insert(payload); setBusy(false); if (error) return setMessage(error.message); setOrderDraft({ product_name: '', customer_name: '', shipping_address: '', quantity: 1, sell_price: '', cost_price: '', status: 'Pending Ship' }); setShowOrderForm(false); setMessage('Order created successfully.'); await load(); onChanged?.(); };
-  const updateOrderStatus = async (id, status) => { setBusy(true); const { error } = await client.from('orders').update({ status }).eq('id', id).eq('seller_id', merchant.userId); setBusy(false); if (error) return setMessage(error.message); await load(); onChanged?.(); };
-  const exportLogs = () => { const fields = ['created_at','category','action','actor','ip','device','details']; const csv = [fields.join(','), ...visibleLogs.map(row => fields.map(key => `"${String(row[key] || '').replace(/"/g,'""')}"`).join(','))].join('\n'); const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); const link = document.createElement('a'); link.href = url; link.download = `${merchant.name || 'seller'}-activity.csv`; link.click(); URL.revokeObjectURL(url); };
-  const updateShop = async (values) => { setBusy(true); const { error } = await client.from('profiles').update(values).eq('id', merchant.userId); setBusy(false); if (error) return setMessage(error.message); onChanged?.(); onClose(); };
+  const visibleLogs = useMemo(
+    () =>
+      activityLogs.filter((row) => {
+        const haystack = [
+          row.category,
+          row.action,
+          row.actor,
+          row.ip,
+          row.device,
+          row.details,
+        ]
+          .join(" ")
+          .toLowerCase();
+        return (
+          (!logSearch || haystack.includes(logSearch.toLowerCase())) &&
+          (logCategory === "all" || row.category === logCategory)
+        );
+      }),
+    [activityLogs, logSearch, logCategory],
+  );
+  const addClicks = async (event) => {
+    event.preventDefault();
+    const numeric = Math.floor(Number(count));
+    if (!numeric || numeric < 1 || numeric > 10000)
+      return setMessage("Enter a click count from 1 to 10,000.");
+    setBusy(true);
+    const rows = Array.from({ length: numeric }, () => ({
+      seller_id: merchant.userId,
+      source: source || "admin",
+    }));
+    const { error } = await client.from("merchant_clicks").insert(rows);
+    if (!error)
+      await client
+        .from("profiles")
+        .update({ traffic_enabled: true })
+        .eq("id", merchant.userId);
+    setBusy(false);
+    if (error) return setMessage(error.message);
+    await load();
+    onChanged?.();
+    onClose();
+  };
+  const selectOrderProduct = (productId) => {
+    const product = showcaseProducts.find(
+      (item) => String(item.id) === productId,
+    );
+    setOrderDraft((current) => ({
+      ...current,
+      product_id: productId,
+      product_name: product?.name || product?.product_code || "",
+      sell_price: product
+        ? String(product.sell_price ?? "")
+        : current.sell_price,
+      cost_price: product
+        ? String(product.cost_price ?? "")
+        : current.cost_price,
+    }));
+  };
+  const createOrder = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    const payload = {
+      seller_id: merchant.userId,
+      order_no: `MH${Date.now()}`,
+      product_name: orderDraft.product_name.trim(),
+      customer_name: orderDraft.customer_name.trim(),
+      shipping_address: orderDraft.shipping_address.trim(),
+      quantity: Number(orderDraft.quantity || 1),
+      sell_price: Number(orderDraft.sell_price || 0),
+      cost_price: Number(orderDraft.cost_price || 0),
+      status: orderDraft.status,
+    };
+    const { error } = await client.from("orders").insert(payload);
+    setBusy(false);
+    if (error) return setMessage(error.message);
+    setOrderDraft({
+      product_id: "",
+      product_name: "",
+      customer_name: "",
+      shipping_address: "",
+      quantity: 1,
+      sell_price: "",
+      cost_price: "",
+      status: "Pending Ship",
+    });
+    setShowOrderForm(false);
+    setMessage("Order created successfully.");
+    await load();
+    onChanged?.();
+  };
+  const updateOrderStatus = async (id, status) => {
+    setBusy(true);
+    const { error } = await client
+      .from("orders")
+      .update({ status })
+      .eq("id", id)
+      .eq("seller_id", merchant.userId);
+    setBusy(false);
+    if (error) return setMessage(error.message);
+    await load();
+    onChanged?.();
+  };
+  const exportLogs = () => {
+    const fields = [
+      "created_at",
+      "category",
+      "action",
+      "actor",
+      "ip",
+      "device",
+      "details",
+    ];
+    const csv = [
+      fields.join(","),
+      ...visibleLogs.map((row) =>
+        fields
+          .map((key) => `"${String(row[key] || "").replace(/"/g, '""')}"`)
+          .join(","),
+      ),
+    ].join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${merchant.name || "seller"}-activity.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+  const updateShop = async (values) => {
+    setBusy(true);
+    const { error } = await client
+      .from("profiles")
+      .update(values)
+      .eq("id", merchant.userId);
+    setBusy(false);
+    if (error) return setMessage(error.message);
+    onChanged?.();
+    onClose();
+  };
   if (!merchant || !action) return null;
-  const Header = ({ title }) => <header><div className="activity-identity"><b>{merchant.name?.[0]?.toUpperCase()}</b><div><h3>{title}</h3><p>{merchant.email}</p></div></div><button type="button" onClick={onClose}>×</button></header>;
-  if (action === 'Add Clicks') return <div className="merchant-activity-overlay"><form className="merchant-activity-modal compact" onSubmit={addClicks}><Header title="Add Traffic Clicks" /><input type="number" min="1" max="10000" required placeholder="Number of clicks" value={count} onChange={(e) => setCount(e.target.value)} /><input placeholder="Source label (optional)" value={source} onChange={(e) => setSource(e.target.value)} />{message && <p className="activity-error">{message}</p>}<footer><button type="button" onClick={onClose}>Cancel</button><button disabled={busy}>Confirm</button></footer></form></div>;
-  if (action === 'Click Logs') return <div className="merchant-activity-overlay"><section className="merchant-activity-modal click-log"><Header title="Click Logs" /><div className="activity-table"><div className="activity-row head"><span>DATE</span><span>IP</span><span>DEVICE</span><span>SOURCE</span></div>{clicks.map((row) => <div className="activity-row" key={row.id}><time>{new Date(row.created_at).toLocaleString()}</time><span>{row.ip_address || '—'}</span><span>{row.device || '—'}</span><b>{row.source || 'click'}</b></div>)}{!clicks.length && <p className="activity-empty">No click logs.</p>}</div></section></div>;
-  if (action === 'Stop Clicks') return <div className="merchant-activity-overlay"><section className="merchant-activity-modal compact"><Header title="Stop Traffic Clicks" /><p>Disable traffic generation for this merchant?</p>{message && <p className="activity-error">{message}</p>}<footer><button onClick={onClose}>Cancel</button><button className="amber" disabled={busy} onClick={() => updateShop({ traffic_enabled: false })}>Stop Clicks</button></footer></section></div>;
-  if (action === 'Resume Clicks') return <div className="merchant-activity-overlay"><section className="merchant-activity-modal compact"><Header title="Resume Clicks" /><p>Resume automated click delivery for this seller?</p>{message && <p className="activity-error">{message}</p>}<footer><button onClick={onClose}>Cancel</button><button disabled={busy} onClick={() => updateShop({ traffic_enabled: true })}>Confirm</button></footer></section></div>;
-  if (action === 'Lock Account') return <div className="merchant-activity-overlay"><section className="merchant-activity-modal compact"><Header title="Lock Account" /><p>This seller will not be able to log in, receive orders, or manage products until unlocked.</p>{message && <p className="activity-error">{message}</p>}<footer><button onClick={onClose}>Cancel</button><button className="red" disabled={busy} onClick={() => updateShop({ allow_login: false })}>Confirm</button></footer></section></div>;
-  if (action === 'Lock Shop') return <div className="merchant-activity-overlay"><section className="merchant-activity-modal compact"><Header title="Lock Shop" /><p>The seller's shop will be disabled immediately. Products will be hidden from customers, new orders will be blocked, and the seller will be signed out. They cannot access their shop until you unlock it.</p>{message && <p className="activity-error">{message}</p>}<footer><button onClick={onClose}>Cancel</button><button className="red" disabled={busy} onClick={() => updateShop({ shop_locked: true, showcase_visible: false, allow_login: false })}>Confirm</button></footer></section></div>;
+  const Header = ({ title }) => (
+    <header>
+      <div className="activity-identity">
+        <b>{merchant.name?.[0]?.toUpperCase()}</b>
+        <div>
+          <h3>{title}</h3>
+          <p>{merchant.email}</p>
+        </div>
+      </div>
+      <button type="button" onClick={onClose}>
+        ×
+      </button>
+    </header>
+  );
+  if (action === "Add Clicks")
+    return (
+      <div className="merchant-activity-overlay">
+        <form className="merchant-activity-modal compact" onSubmit={addClicks}>
+          <Header title="Add Traffic Clicks" />
+          <input
+            type="number"
+            min="1"
+            max="10000"
+            required
+            placeholder="Number of clicks"
+            value={count}
+            onChange={(e) => setCount(e.target.value)}
+          />
+          <input
+            placeholder="Source label (optional)"
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+          />
+          {message && <p className="activity-error">{message}</p>}
+          <footer>
+            <button type="button" onClick={onClose}>
+              Cancel
+            </button>
+            <button disabled={busy}>Confirm</button>
+          </footer>
+        </form>
+      </div>
+    );
+  if (action === "Click Logs")
+    return (
+      <div className="merchant-activity-overlay">
+        <section className="merchant-activity-modal click-log">
+          <Header title="Click Logs" />
+          <div className="activity-table">
+            <div className="activity-row head">
+              <span>DATE</span>
+              <span>IP</span>
+              <span>DEVICE</span>
+              <span>SOURCE</span>
+            </div>
+            {clicks.map((row) => (
+              <div className="activity-row" key={row.id}>
+                <time>{new Date(row.created_at).toLocaleString()}</time>
+                <span>{row.ip_address || "—"}</span>
+                <span>{row.device || "—"}</span>
+                <b>{row.source || "click"}</b>
+              </div>
+            ))}
+            {!clicks.length && <p className="activity-empty">No click logs.</p>}
+          </div>
+        </section>
+      </div>
+    );
+  if (action === "Stop Clicks")
+    return (
+      <div className="merchant-activity-overlay">
+        <section className="merchant-activity-modal compact">
+          <Header title="Stop Traffic Clicks" />
+          <p>Disable traffic generation for this merchant?</p>
+          {message && <p className="activity-error">{message}</p>}
+          <footer>
+            <button onClick={onClose}>Cancel</button>
+            <button
+              className="amber"
+              disabled={busy}
+              onClick={() => updateShop({ traffic_enabled: false })}
+            >
+              Stop Clicks
+            </button>
+          </footer>
+        </section>
+      </div>
+    );
+  if (action === "Resume Clicks")
+    return (
+      <div className="merchant-activity-overlay">
+        <section className="merchant-activity-modal compact">
+          <Header title="Resume Clicks" />
+          <p>Resume automated click delivery for this seller?</p>
+          {message && <p className="activity-error">{message}</p>}
+          <footer>
+            <button onClick={onClose}>Cancel</button>
+            <button
+              disabled={busy}
+              onClick={() => updateShop({ traffic_enabled: true })}
+            >
+              Confirm
+            </button>
+          </footer>
+        </section>
+      </div>
+    );
+  if (action === "Lock Account")
+    return (
+      <div className="merchant-activity-overlay">
+        <section className="merchant-activity-modal compact">
+          <Header title="Lock Account" />
+          <p>
+            This seller will not be able to log in, receive orders, or manage
+            products until unlocked.
+          </p>
+          {message && <p className="activity-error">{message}</p>}
+          <footer>
+            <button onClick={onClose}>Cancel</button>
+            <button
+              className="red"
+              disabled={busy}
+              onClick={() => updateShop({ allow_login: false })}
+            >
+              Confirm
+            </button>
+          </footer>
+        </section>
+      </div>
+    );
+  if (action === "Lock Shop")
+    return (
+      <div className="merchant-activity-overlay">
+        <section className="merchant-activity-modal compact">
+          <Header title="Lock Shop" />
+          <p>
+            The seller's shop will be disabled immediately. Products will be
+            hidden from buyers until you unlock it.
+          </p>
+          {message && <p className="activity-error">{message}</p>}
+          <footer>
+            <button onClick={onClose}>Cancel</button>
+            <button
+              className="red"
+              disabled={busy}
+              onClick={() =>
+                updateShop({ shop_locked: true, showcase_visible: false })
+              }
+            >
+              Confirm
+            </button>
+          </footer>
+        </section>
+      </div>
+    );
+  if (action === "Unlock Shop")
+    return (
+      <div className="merchant-activity-overlay">
+        <section className="merchant-activity-modal compact">
+          <Header title="Unlock Shop" />
+          <p>
+            The seller's shop and showcase will become visible to buyers again.
+          </p>
+          {message && <p className="activity-error">{message}</p>}
+          <footer>
+            <button onClick={onClose}>Cancel</button>
+            <button
+              disabled={busy}
+              onClick={() =>
+                updateShop({ shop_locked: false, showcase_visible: true })
+              }
+            >
+              Confirm
+            </button>
+          </footer>
+        </section>
+      </div>
+    );
 
-  const managing = action === 'Manage';
-  const detailsDrawer = action === 'Details';
-  const tabs = managing ? [['Balance',txns.length],['Orders',orders.length],['Click Scripts',0],['Click Logs',clicks.length]] : [['Overview',1],['Orders',orders.length],['Txns',txns.length],['Locks',locks.length],['Clicks',clicks.length],['Info',1]];
-  return <div className={`merchant-activity-overlay ${managing ? 'manage-workspace-overlay' : ''} ${detailsDrawer ? 'merchant-details-drawer-overlay' : ''}`}><section className={`merchant-activity-modal details ${managing ? 'manage-workspace' : ''} ${detailsDrawer ? 'merchant-details-drawer' : ''}`}>{managing ? <><button type="button" className="manage-back" onClick={onClose}>← Back</button><div className="manage-merchant-header"><div><h2>{merchant.name} {profile?.traffic_enabled === false && <small>CLICKS PAUSED</small>}</h2><p>{merchant.email} · {profile?.referral_code || merchant.id}</p></div><div className="manage-action-bar"><button onClick={() => openAction?.('Balance')}>＄ Adjust Balance</button><button onClick={() => openAction?.('Reset Pwd')}>⚿ Reset Password</button><button onClick={() => openAction?.('Kick')}>↪ Kick Store</button><button onClick={() => openAction?.('Lock Account')}>▣ Lock Account</button><button onClick={() => openAction?.('Login')}>↪ Login as Seller</button><button onClick={() => openAction?.(profile?.traffic_enabled === false ? 'Resume Clicks' : 'Stop Clicks')}>◉ {profile?.traffic_enabled === false ? 'Resume' : 'Stop'} Clicks</button><button onClick={() => openAction?.('Add Clicks')}>⌁ Add Clicks</button><button onClick={() => setTab('Click Logs')}>〽 Click Logs</button><button className="danger" onClick={() => openAction?.('Lock Shop')}>▣ Lock Shop</button></div></div></> : <Header title={merchant.name} />}<nav>{tabs.map(([name,total]) => <button type="button" className={tab === name ? 'active' : ''} onClick={() => setTab(name)} key={name}>{name} {!managing && name !== 'Overview' && name !== 'Info' ? `(${total})` : ''}</button>)}</nav>
-    {tab === 'Balance' && <div className="manage-balance"><div className="manage-stat-grid">{[['AVAILABLE BALANCE',merchant.balance],['PENDING BALANCE','$0.00'],['TOTAL EARNINGS',`$${totals.revenue.toFixed(2)}`],['WITHDRAWN','$0.00'],['FROZEN BALANCE',`$${locks.filter(x=>x.status==='Active').reduce((s,x)=>s+Number(x.amount||0),0).toFixed(2)}`]].map(([a,b])=><article key={a}><span>{a}</span><strong>{b}</strong></article>)}</div><section className="manage-bank"><h3>▱ Bank Account</h3><p>No bank account linked yet.</p></section><section className="manage-history"><header><h3>Transaction History</h3><button type="button" onClick={() => openAction?.('Balance')}>＋ Add / Deduct</button></header><SimpleRows rows={txns} empty="No transactions yet." render={(row)=><><time>{new Date(row.created_at).toLocaleString()}</time><b>{row.type}</b><strong>${Number(row.amount||0).toFixed(2)}</strong><span>{row.note||'—'}</span></>}/></section></div>}
-    {tab === 'Click Scripts' && <section className="manage-scripts"><header><div><h3>Click Scripts</h3><p>Manage automated click items for this seller's store.</p></div><button type="button" onClick={() => openAction?.('Add Clicks')}>＋ Add Click Item</button></header><p>No click items for this seller yet. Add the first one to enable automated clicks.</p></section>}
-    {tab === 'Click Logs' && <section className="manage-table-card"><div className="manage-table-tools"><input placeholder="Search action / IP / device..." value={logSearch} onChange={(e)=>setLogSearch(e.target.value)}/><select value={logCategory} onChange={(e)=>setLogCategory(e.target.value)}>{['all','login','logout','product click','order','balance','password','faq','api','automation','account'].map(x=><option value={x} key={x}>{x === 'all' ? 'All categories' : x}</option>)}</select><button type="button" onClick={exportLogs}>⇩ Export CSV</button></div><div className="manage-table-scroll"><div className="activity-table manage-clicks"><div className="activity-row head"><span>DATE &amp; TIME</span><span>CATEGORY</span><span>ACTION</span><span>ACTOR</span><span>IP ADDRESS</span><span>DEVICE / BROWSER</span><span>DETAILS</span></div>{visibleLogs.map(row=><div className="activity-row" key={row.id}><time>{new Date(row.created_at).toLocaleString()}</time><b>{row.category}</b><span>{row.action}</span><span>{row.actor}</span><span>{row.ip||'—'}</span><span>{row.device||'—'}</span><span>{row.details||'—'}</span></div>)}{!visibleLogs.length&&<p className="activity-empty">No activity logs.</p>}</div></div></section>}
-    {tab === 'Overview' && <div className="overview-panels"><Panel title="WALLET & BALANCES" items={[['AVAILABLE',merchant.balance],['FROZEN','$0.00'],['SETTLED','$0.00'],['UNSETTLED','$0.00'],['ACTIVE LOCKS',`$${locks.filter(x=>x.status==='Active').reduce((s,x)=>s+Number(x.amount||0),0).toFixed(2)}`],['TOTAL REVENUE',`$${totals.revenue.toFixed(2)}`]]}/><Panel title="PERFORMANCE" items={[['TOTAL ORDERS',orders.length],['COMPLETED',totals.completed],['TOTAL PROFIT',`$${totals.profit.toFixed(2)}`],['CLICK COUNT',clicks.length]]}/><div className="store-controls"><h4>STORE CONTROLS</h4><button onClick={() => updateShop({ showcase_visible: !(profile?.showcase_visible !== false) })}>◉ Showcase {profile?.showcase_visible === false ? 'Hidden' : 'Visible'}</button><button onClick={() => updateShop({ traffic_enabled: !(profile?.traffic_enabled !== false) })}>⌁ Traffic {profile?.traffic_enabled === false ? 'Off' : 'On'}</button><button className="orange" onClick={() => updateShop({ shop_locked: true })}>♙ Lock Shop</button><button className="red" onClick={() => updateShop({ allow_login: false })}>⊘ Suspend Account</button></div><div className="quick-actions"><h4>QUICK ACTIONS</h4>{['Balance','Lock','Logs','Payment','Reset Pwd','Edit','Risk Control','Kick','Login','Showcase','Add Clicks','Stop Clicks','Click Logs','Lock Shop'].map((item) => <button key={item} onClick={() => openAction?.(item)}>{item}</button>)}</div></div>}
-    {tab === 'Orders' && <div className="merchant-orders-tab"><div className="manage-table-tools order-tools"><input placeholder="Search orders..." value={orderSearch} onChange={(e)=>setOrderSearch(e.target.value)}/><select value={orderStatus} onChange={(e)=>setOrderStatus(e.target.value)}>{['all','Pending Ship','Pending Receive','Shipped','Completed','Refund','Cancelled'].map(x=><option value={x} key={x}>{x === 'all' ? 'All statuses' : x}</option>)}</select><button type="button" className="new-merchant-order" onClick={() => setShowOrderForm(!showOrderForm)}>＋ Create Order</button></div>{showOrderForm && <form className="merchant-order-form" onSubmit={createOrder}><input required placeholder="Product name" value={orderDraft.product_name} onChange={(e)=>setOrderDraft({...orderDraft,product_name:e.target.value})}/><input required placeholder="Customer name" value={orderDraft.customer_name} onChange={(e)=>setOrderDraft({...orderDraft,customer_name:e.target.value})}/><input placeholder="Shipping address" value={orderDraft.shipping_address} onChange={(e)=>setOrderDraft({...orderDraft,shipping_address:e.target.value})}/><input type="number" min="1" placeholder="Quantity" value={orderDraft.quantity} onChange={(e)=>setOrderDraft({...orderDraft,quantity:e.target.value})}/><input type="number" min="0" step="0.01" required placeholder="Sell price" value={orderDraft.sell_price} onChange={(e)=>setOrderDraft({...orderDraft,sell_price:e.target.value})}/><input type="number" min="0" step="0.01" placeholder="Cost price" value={orderDraft.cost_price} onChange={(e)=>setOrderDraft({...orderDraft,cost_price:e.target.value})}/><select value={orderDraft.status} onChange={(e)=>setOrderDraft({...orderDraft,status:e.target.value})}>{['Pending Ship','Pending Receive','Shipped','Completed','Refund','Cancelled'].map(x=><option key={x}>{x}</option>)}</select><button disabled={busy}>Create Order</button></form>}{message && <p className="activity-message">{message}</p>}<div className="manage-table-scroll"><div className="order-management-table"><div className="order-management-row head"><span>ORDER</span><span>PRODUCT</span><span>AMOUNT</span><span>STATUS</span><span>SHIPPING</span><span>DATE</span><span>ACTIONS</span></div>{visibleOrders.map(row=><div className="order-management-row" key={row.id}><b>{row.order_no||row.id}</b><span>{row.product_name||'—'}</span><strong>${(Number(row.sell_price||0)*Number(row.quantity||1)).toFixed(2)}</strong><span>{row.status||'—'}</span><span>{row.shipping_address||'—'}</span><time>{new Date(row.created_at).toLocaleString()}</time><select value={row.status} disabled={busy} onChange={(e)=>updateOrderStatus(row.id,e.target.value)}>{['Pending Ship','Pending Receive','Shipped','Completed','Refund','Cancelled'].map(x=><option key={x}>{x}</option>)}</select></div>)}{!visibleOrders.length&&<p className="activity-empty">No orders found.</p>}</div></div></div>} 
-    {tab === 'Txns' && <SimpleRows rows={txns} empty="No transactions found." render={(row)=><><b>{row.type}</b><span>{row.note || '—'}</span><strong>${Number(row.amount||0).toFixed(2)}</strong><time>{new Date(row.created_at).toLocaleString()}</time></>}/>} 
-    {tab === 'Locks' && <SimpleRows rows={locks} empty="No balance locks." render={(row)=><><b>${Number(row.amount||0).toFixed(2)}</b><span>{row.reason}</span><span>{row.status}</span><time>{new Date(row.created_at).toLocaleString()}</time></>}/>} 
-    {tab === 'Clicks' && <div className="activity-table"><div className="activity-row head"><span>DATE & TIME</span><span>IP</span><span>DEVICE</span><span>SOURCE</span></div>{clicks.map(row=><div className="activity-row" key={row.id}><time>{new Date(row.created_at).toLocaleString()}</time><span>{row.ip_address||'—'}</span><span>{row.device||'—'}</span><b>{row.source||'click'}</b></div>)}</div>}
-    {tab === 'Info' && <div className="profile-info"><h4>PROFILE DETAILS</h4>{[['Store Name',merchant.name],['Email',merchant.email],['User ID',merchant.userId],['Referral Code',profile?.referral_code || merchant.id],['Assigned Agent',profile?.agent_id || '—'],['Credit Score',profile?.credit_score ?? merchant.credit],['Click Count',clicks.length],['Remark',profile?.merchant_remark || '—'],['Registered',profile?.created_at ? new Date(profile.created_at).toLocaleString() : '—']].map(([a,b])=><p key={a}><span>{a}</span><strong>{b}</strong></p>)}</div>}
-  </section></div>;
+  const managing = action === "Manage";
+  const detailsDrawer = action === "Details";
+  const tabs = managing
+    ? [
+        ["Balance", txns.length],
+        ["Orders", orders.length],
+        ["Click Scripts", 0],
+        ["Click Logs", clicks.length],
+      ]
+    : [
+        ["Overview", 1],
+        ["Orders", orders.length],
+        ["Txns", txns.length],
+        ["Locks", locks.length],
+        ["Clicks", clicks.length],
+        ["Info", 1],
+      ];
+  return (
+    <div
+      className={`merchant-activity-overlay ${managing ? "manage-workspace-overlay" : ""} ${detailsDrawer ? "merchant-details-drawer-overlay" : ""}`}
+    >
+      <section
+        className={`merchant-activity-modal details ${managing ? "manage-workspace" : ""} ${detailsDrawer ? "merchant-details-drawer" : ""}`}
+      >
+        {managing ? (
+          <>
+            <button type="button" className="manage-back" onClick={onClose}>
+              ← Back
+            </button>
+            <div className="manage-merchant-header">
+              <div>
+                <h2>
+                  {merchant.name}{" "}
+                  {profile?.traffic_enabled === false && (
+                    <small>CLICKS PAUSED</small>
+                  )}
+                </h2>
+                <p>
+                  {merchant.email} · {profile?.referral_code || merchant.id}
+                </p>
+              </div>
+              <div className="manage-action-bar">
+                <button onClick={() => openAction?.("Balance")}>
+                  ＄ Adjust Balance
+                </button>
+                <button onClick={() => openAction?.("Reset Pwd")}>
+                  ⚿ Reset Password
+                </button>
+                <button onClick={() => openAction?.("Kick")}>
+                  ↪ Kick Store
+                </button>
+                <button onClick={() => openAction?.("Lock Account")}>
+                  ▣ Lock Account
+                </button>
+                <button onClick={() => openAction?.("Login")}>
+                  ↪ Login as Seller
+                </button>
+                <button
+                  onClick={() =>
+                    openAction?.(
+                      profile?.traffic_enabled === false
+                        ? "Resume Clicks"
+                        : "Stop Clicks",
+                    )
+                  }
+                >
+                  ◉ {profile?.traffic_enabled === false ? "Resume" : "Stop"}{" "}
+                  Clicks
+                </button>
+                <button onClick={() => openAction?.("Add Clicks")}>
+                  ⌁ Add Clicks
+                </button>
+                <button onClick={() => setTab("Click Logs")}>
+                  〽 Click Logs
+                </button>
+                <button
+                  className="danger"
+                  onClick={() => openAction?.("Lock Shop")}
+                >
+                  ▣ Lock Shop
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <Header title={merchant.name} />
+        )}
+        <nav>
+          {tabs.map(([name, total]) => (
+            <button
+              type="button"
+              className={tab === name ? "active" : ""}
+              onClick={() => setTab(name)}
+              key={name}
+            >
+              {name}{" "}
+              {!managing && name !== "Overview" && name !== "Info"
+                ? `(${total})`
+                : ""}
+            </button>
+          ))}
+        </nav>
+        {tab === "Balance" && (
+          <div className="manage-balance">
+            <div className="manage-stat-grid">
+              {[
+                ["AVAILABLE BALANCE", merchant.balance],
+                ["PENDING BALANCE", "$0.00"],
+                ["TOTAL EARNINGS", `$${totals.revenue.toFixed(2)}`],
+                ["WITHDRAWN", "$0.00"],
+                [
+                  "FROZEN BALANCE",
+                  `$${locks
+                    .filter((x) => x.status === "Active")
+                    .reduce((s, x) => s + Number(x.amount || 0), 0)
+                    .toFixed(2)}`,
+                ],
+              ].map(([a, b]) => (
+                <article key={a}>
+                  <span>{a}</span>
+                  <strong>{b}</strong>
+                </article>
+              ))}
+            </div>
+            <section className="manage-bank">
+              <h3>▱ Bank Account</h3>
+              <p>No bank account linked yet.</p>
+            </section>
+            <section className="manage-history">
+              <header>
+                <h3>Transaction History</h3>
+                <button type="button" onClick={() => openAction?.("Balance")}>
+                  ＋ Add / Deduct
+                </button>
+              </header>
+              <SimpleRows
+                rows={txns}
+                empty="No transactions yet."
+                render={(row) => (
+                  <>
+                    <time>{new Date(row.created_at).toLocaleString()}</time>
+                    <b>{row.type}</b>
+                    <strong>${Number(row.amount || 0).toFixed(2)}</strong>
+                    <span>{row.note || "—"}</span>
+                  </>
+                )}
+              />
+            </section>
+          </div>
+        )}
+        {tab === "Click Scripts" && (
+          <section className="manage-scripts">
+            <header>
+              <div>
+                <h3>Click Scripts</h3>
+                <p>Manage automated click items for this seller's store.</p>
+              </div>
+              <button type="button" onClick={() => openAction?.("Add Clicks")}>
+                ＋ Add Click Item
+              </button>
+            </header>
+            <p>
+              No click items for this seller yet. Add the first one to enable
+              automated clicks.
+            </p>
+          </section>
+        )}
+        {tab === "Click Logs" && (
+          <section className="manage-table-card">
+            <div className="manage-table-tools">
+              <input
+                placeholder="Search action / IP / device..."
+                value={logSearch}
+                onChange={(e) => setLogSearch(e.target.value)}
+              />
+              <select
+                value={logCategory}
+                onChange={(e) => setLogCategory(e.target.value)}
+              >
+                {[
+                  "all",
+                  "login",
+                  "logout",
+                  "product click",
+                  "order",
+                  "balance",
+                  "password",
+                  "faq",
+                  "api",
+                  "automation",
+                  "account",
+                ].map((x) => (
+                  <option value={x} key={x}>
+                    {x === "all" ? "All categories" : x}
+                  </option>
+                ))}
+              </select>
+              <button type="button" onClick={exportLogs}>
+                ⇩ Export CSV
+              </button>
+            </div>
+            <div className="manage-table-scroll">
+              <div className="activity-table manage-clicks">
+                <div className="activity-row head">
+                  <span>DATE &amp; TIME</span>
+                  <span>CATEGORY</span>
+                  <span>ACTION</span>
+                  <span>ACTOR</span>
+                  <span>IP ADDRESS</span>
+                  <span>DEVICE / BROWSER</span>
+                  <span>DETAILS</span>
+                </div>
+                {visibleLogs.map((row) => (
+                  <div className="activity-row" key={row.id}>
+                    <time>{new Date(row.created_at).toLocaleString()}</time>
+                    <b>{row.category}</b>
+                    <span>{row.action}</span>
+                    <span>{row.actor}</span>
+                    <span>{row.ip || "—"}</span>
+                    <span>{row.device || "—"}</span>
+                    <span>{row.details || "—"}</span>
+                  </div>
+                ))}
+                {!visibleLogs.length && (
+                  <p className="activity-empty">No activity logs.</p>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+        {tab === "Overview" && (
+          <div className="overview-panels">
+            <Panel
+              title="WALLET & BALANCES"
+              items={[
+                ["AVAILABLE", merchant.balance],
+                ["FROZEN", "$0.00"],
+                ["SETTLED", "$0.00"],
+                ["UNSETTLED", "$0.00"],
+                [
+                  "ACTIVE LOCKS",
+                  `$${locks
+                    .filter((x) => x.status === "Active")
+                    .reduce((s, x) => s + Number(x.amount || 0), 0)
+                    .toFixed(2)}`,
+                ],
+                ["TOTAL REVENUE", `$${totals.revenue.toFixed(2)}`],
+              ]}
+            />
+            <Panel
+              title="PERFORMANCE"
+              items={[
+                ["TOTAL ORDERS", orders.length],
+                ["COMPLETED", totals.completed],
+                ["TOTAL PROFIT", `$${totals.profit.toFixed(2)}`],
+                ["CLICK COUNT", clicks.length],
+              ]}
+            />
+            <div className="store-controls">
+              <h4>STORE CONTROLS</h4>
+              <button
+                onClick={() =>
+                  updateShop({
+                    showcase_visible: !(profile?.showcase_visible !== false),
+                  })
+                }
+              >
+                ◉ Showcase{" "}
+                {profile?.showcase_visible === false ? "Hidden" : "Visible"}
+              </button>
+              <button
+                onClick={() =>
+                  updateShop({
+                    traffic_enabled: !(profile?.traffic_enabled !== false),
+                  })
+                }
+              >
+                ⌁ Traffic {profile?.traffic_enabled === false ? "Off" : "On"}
+              </button>
+              <button
+                className="orange"
+                onClick={() => updateShop({ shop_locked: true })}
+              >
+                ♙ Lock Shop
+              </button>
+              <button
+                className="red"
+                onClick={() => updateShop({ allow_login: false })}
+              >
+                ⊘ Suspend Account
+              </button>
+            </div>
+            <div className="quick-actions">
+              <h4>QUICK ACTIONS</h4>
+              {[
+                "Balance",
+                "Lock",
+                "Logs",
+                "Payment",
+                "Reset Pwd",
+                "Edit",
+                "Risk Control",
+                "Kick",
+                "Login",
+                "Showcase",
+                "Add Clicks",
+                "Stop Clicks",
+                "Click Logs",
+                "Lock Shop",
+              ].map((item) => (
+                <button key={item} onClick={() => openAction?.(item)}>
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {tab === "Orders" && (
+          <div className="merchant-orders-tab">
+            <div className="manage-table-tools order-tools">
+              <input
+                placeholder="Search orders..."
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+              />
+              <select
+                value={orderStatus}
+                onChange={(e) => setOrderStatus(e.target.value)}
+              >
+                {[
+                  "all",
+                  "Pending Ship",
+                  "Pending Receive",
+                  "Shipped",
+                  "Completed",
+                  "Refund",
+                  "Cancelled",
+                ].map((x) => (
+                  <option value={x} key={x}>
+                    {x === "all" ? "All statuses" : x}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="new-merchant-order"
+                onClick={() => setShowOrderForm(!showOrderForm)}
+              >
+                ＋ Create Order
+              </button>
+            </div>
+            {showOrderForm && (
+              <form className="merchant-order-form" onSubmit={createOrder}>
+                <select
+                  required
+                  value={orderDraft.product_id}
+                  onChange={(e) => selectOrderProduct(e.target.value)}
+                >
+                  <option value="">— Select product from showcase —</option>
+                  {showcaseProducts.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name || product.product_code} · $
+                      {Number(product.sell_price || 0).toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+                {!showcaseProducts.length && (
+                  <p className="activity-empty">
+                    This seller has no on-shelf products in their showcase yet.
+                  </p>
+                )}
+                <input
+                  required
+                  placeholder="Customer name"
+                  value={orderDraft.customer_name}
+                  onChange={(e) =>
+                    setOrderDraft({
+                      ...orderDraft,
+                      customer_name: e.target.value,
+                    })
+                  }
+                />
+                <input
+                  placeholder="Shipping address"
+                  value={orderDraft.shipping_address}
+                  onChange={(e) =>
+                    setOrderDraft({
+                      ...orderDraft,
+                      shipping_address: e.target.value,
+                    })
+                  }
+                />
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="Quantity"
+                  value={orderDraft.quantity}
+                  onChange={(e) =>
+                    setOrderDraft({ ...orderDraft, quantity: e.target.value })
+                  }
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  placeholder="Sell price"
+                  value={orderDraft.sell_price}
+                  onChange={(e) =>
+                    setOrderDraft({ ...orderDraft, sell_price: e.target.value })
+                  }
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Cost price"
+                  value={orderDraft.cost_price}
+                  onChange={(e) =>
+                    setOrderDraft({ ...orderDraft, cost_price: e.target.value })
+                  }
+                />
+                <select
+                  value={orderDraft.status}
+                  onChange={(e) =>
+                    setOrderDraft({ ...orderDraft, status: e.target.value })
+                  }
+                >
+                  {[
+                    "Pending Ship",
+                    "Pending Receive",
+                    "Shipped",
+                    "Completed",
+                    "Refund",
+                    "Cancelled",
+                  ].map((x) => (
+                    <option key={x}>{x}</option>
+                  ))}
+                </select>
+                <button disabled={busy || !orderDraft.product_id}>
+                  Create Order
+                </button>
+              </form>
+            )}
+            {message && <p className="activity-message">{message}</p>}
+            <div className="manage-table-scroll">
+              <div className="order-management-table">
+                <div className="order-management-row head">
+                  <span>ORDER</span>
+                  <span>PRODUCT</span>
+                  <span>AMOUNT</span>
+                  <span>STATUS</span>
+                  <span>SHIPPING</span>
+                  <span>DATE</span>
+                  <span>ACTIONS</span>
+                </div>
+                {visibleOrders.map((row) => (
+                  <div className="order-management-row" key={row.id}>
+                    <b>{row.order_no || row.id}</b>
+                    <span>{row.product_name || "—"}</span>
+                    <strong>
+                      $
+                      {(
+                        Number(row.sell_price || 0) * Number(row.quantity || 1)
+                      ).toFixed(2)}
+                    </strong>
+                    <span>{row.status || "—"}</span>
+                    <span>{row.shipping_address || "—"}</span>
+                    <time>{new Date(row.created_at).toLocaleString()}</time>
+                    <select
+                      value={row.status}
+                      disabled={busy}
+                      onChange={(e) =>
+                        updateOrderStatus(row.id, e.target.value)
+                      }
+                    >
+                      {[
+                        "Pending Ship",
+                        "Pending Receive",
+                        "Shipped",
+                        "Completed",
+                        "Refund",
+                        "Cancelled",
+                      ].map((x) => (
+                        <option key={x}>{x}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+                {!visibleOrders.length && (
+                  <p className="activity-empty">No orders found.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {tab === "Txns" && (
+          <SimpleRows
+            rows={txns}
+            empty="No transactions found."
+            render={(row) => (
+              <>
+                <b>{row.type}</b>
+                <span>{row.note || "—"}</span>
+                <strong>${Number(row.amount || 0).toFixed(2)}</strong>
+                <time>{new Date(row.created_at).toLocaleString()}</time>
+              </>
+            )}
+          />
+        )}
+        {tab === "Locks" && (
+          <SimpleRows
+            rows={locks}
+            empty="No balance locks."
+            render={(row) => (
+              <>
+                <b>${Number(row.amount || 0).toFixed(2)}</b>
+                <span>{row.reason}</span>
+                <span>{row.status}</span>
+                <time>{new Date(row.created_at).toLocaleString()}</time>
+              </>
+            )}
+          />
+        )}
+        {tab === "Clicks" && (
+          <div className="activity-table">
+            <div className="activity-row head">
+              <span>DATE & TIME</span>
+              <span>IP</span>
+              <span>DEVICE</span>
+              <span>SOURCE</span>
+            </div>
+            {clicks.map((row) => (
+              <div className="activity-row" key={row.id}>
+                <time>{new Date(row.created_at).toLocaleString()}</time>
+                <span>{row.ip_address || "—"}</span>
+                <span>{row.device || "—"}</span>
+                <b>{row.source || "click"}</b>
+              </div>
+            ))}
+          </div>
+        )}
+        {tab === "Info" && (
+          <div className="profile-info">
+            <h4>PROFILE DETAILS</h4>
+            {[
+              ["Store Name", merchant.name],
+              ["Email", merchant.email],
+              ["User ID", merchant.userId],
+              ["Referral Code", profile?.referral_code || merchant.id],
+              ["Assigned Agent", profile?.agent_id || "—"],
+              ["Credit Score", profile?.credit_score ?? merchant.credit],
+              ["Click Count", clicks.length],
+              ["Remark", profile?.merchant_remark || "—"],
+              [
+                "Registered",
+                profile?.created_at
+                  ? new Date(profile.created_at).toLocaleString()
+                  : "—",
+              ],
+            ].map(([a, b]) => (
+              <p key={a}>
+                <span>{a}</span>
+                <strong>{b}</strong>
+              </p>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
 }
-const Panel=({title,items})=><div className="overview-panel"><h4>{title}</h4><div>{items.map(([a,b])=><p key={a}><span>{a}</span><strong>{b}</strong></p>)}</div></div>;
-const SimpleRows=({rows,empty,render})=><div className="simple-rows">{rows.map(row=><article key={row.id}>{render(row)}</article>)}{!rows.length&&<p className="activity-empty">{empty}</p>}</div>;
+const Panel = ({ title, items }) => (
+  <div className="overview-panel">
+    <h4>{title}</h4>
+    <div>
+      {items.map(([a, b]) => (
+        <p key={a}>
+          <span>{a}</span>
+          <strong>{b}</strong>
+        </p>
+      ))}
+    </div>
+  </div>
+);
+const SimpleRows = ({ rows, empty, render }) => (
+  <div className="simple-rows">
+    {rows.map((row) => (
+      <article key={row.id}>{render(row)}</article>
+    ))}
+    {!rows.length && <p className="activity-empty">{empty}</p>}
+  </div>
+);

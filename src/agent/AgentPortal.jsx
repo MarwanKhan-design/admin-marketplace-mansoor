@@ -565,7 +565,9 @@ function AgentRechargeOrders() {
   const load = async () => {
     const { data } = await agentSupabase
       .from("recharge_requests")
-      .select("*,seller:profiles!recharge_requests_seller_id_fkey(display_name,email)")
+      .select(
+        "*,seller:profiles!recharge_requests_seller_id_fkey(display_name,email)",
+      )
       .order("created_at", { ascending: false });
     setOrders(
       (data || []).map((row) => ({
@@ -582,13 +584,19 @@ function AgentRechargeOrders() {
   useEffect(() => {
     load();
     try {
-      setMethods(JSON.parse(localStorage.getItem("agent_demo_payment_methods") || "[]"));
+      setMethods(
+        JSON.parse(localStorage.getItem("agent_demo_payment_methods") || "[]"),
+      );
     } catch {
       /* ignore */
     }
     const channel = agentSupabase
       .channel("agent-recharge-requests")
-      .on("postgres_changes", { event: "*", schema: "public", table: "recharge_requests" }, load)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "recharge_requests" },
+        load,
+      )
       .subscribe();
     return () => agentSupabase.removeChannel(channel);
   }, []);
@@ -601,7 +609,15 @@ function AgentRechargeOrders() {
     event.preventDefault();
     saveMethods([...methods, { id: Date.now(), ...method }]);
     setShowMethod(false);
-    setMethod({ name: "", type: "Bank Transfer", bank: "", accountName: "", accountNumber: "", routing: "", order: 0 });
+    setMethod({
+      name: "",
+      type: "Bank Transfer",
+      bank: "",
+      accountName: "",
+      accountNumber: "",
+      routing: "",
+      order: 0,
+    });
   };
 
   const approveRequest = async (order) => {
@@ -633,9 +649,12 @@ function AgentRechargeOrders() {
 
   const visible = orders.filter(
     (item) =>
-      (merchantFilter === "All merchants" || item.merchant === merchantFilter) &&
+      (merchantFilter === "All merchants" ||
+        item.merchant === merchantFilter) &&
       (statusFilter === "All statuses" || item.status === statusFilter) &&
-      String(item.merchant || "").toLowerCase().includes(search.toLowerCase()),
+      String(item.merchant || "")
+        .toLowerCase()
+        .includes(search.toLowerCase()),
   );
   const merchantNames = [...new Set(orders.map((item) => item.merchant))];
 
@@ -646,10 +665,18 @@ function AgentRechargeOrders() {
         <p>Review and approve merchant recharge requests.</p>
       </header>
       <nav className="agent-recharge-tabs">
-        <button type="button" className={tab === "requests" ? "active" : ""} onClick={() => setTab("requests")}>
+        <button
+          type="button"
+          className={tab === "requests" ? "active" : ""}
+          onClick={() => setTab("requests")}
+        >
           Recharge Requests
         </button>
-        <button type="button" className={tab === "methods" ? "active" : ""} onClick={() => setTab("methods")}>
+        <button
+          type="button"
+          className={tab === "methods" ? "active" : ""}
+          onClick={() => setTab("methods")}
+        >
           ⚙ Payment Methods
         </button>
       </nav>
@@ -658,15 +685,25 @@ function AgentRechargeOrders() {
           <div className="agent-recharge-tools">
             <label>
               <span>⌕</span>
-              <input placeholder="Search merchant" value={search} onChange={(event) => setSearch(event.target.value)} />
+              <input
+                placeholder="Search merchant"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
             </label>
-            <select value={merchantFilter} onChange={(event) => setMerchantFilter(event.target.value)}>
+            <select
+              value={merchantFilter}
+              onChange={(event) => setMerchantFilter(event.target.value)}
+            >
               <option>All merchants</option>
               {merchantNames.map((name) => (
                 <option key={name}>{name}</option>
               ))}
             </select>
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+            >
               <option>All statuses</option>
               <option>Pending</option>
               <option>Approved</option>
@@ -683,10 +720,18 @@ function AgentRechargeOrders() {
                 <time>{item.date}</time>
                 {item.status === "Pending" && (
                   <span>
-                    <button type="button" disabled={busy} onClick={() => approveRequest(item)}>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => approveRequest(item)}
+                    >
                       ✓ Approve
                     </button>
-                    <button type="button" disabled={busy} onClick={() => rejectRequest(item)}>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => rejectRequest(item)}
+                    >
                       × Reject
                     </button>
                   </span>
@@ -701,7 +746,10 @@ function AgentRechargeOrders() {
           <header>
             <div>
               <h3>Configured Payment Channels</h3>
-              <p>Sellers will see these methods and their demo account details when requesting a recharge.</p>
+              <p>
+                Sellers will see these methods and their demo account details
+                when requesting a recharge.
+              </p>
             </div>
             <button type="button" onClick={() => setShowMethod(true)}>
               ＋ Add Method
@@ -713,8 +761,15 @@ function AgentRechargeOrders() {
                 <strong>{item.name}</strong>
                 <span>{item.type}</span>
               </div>
-              <p>{item.bank || "Demo payment channel"} · Account details hidden</p>
-              <button type="button" onClick={() => saveMethods(methods.filter((entry) => entry.id !== item.id))}>
+              <p>
+                {item.bank || "Demo payment channel"} · Account details hidden
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  saveMethods(methods.filter((entry) => entry.id !== item.id))
+                }
+              >
                 Remove
               </button>
             </article>
@@ -722,23 +777,42 @@ function AgentRechargeOrders() {
           {!methods.length && (
             <div className="agent-method-empty">
               No payment methods configured yet.
-              <small>Add at least one demo method to preview the seller experience.</small>
+              <small>
+                Add at least one demo method to preview the seller experience.
+              </small>
             </div>
           )}
         </section>
       )}
       {showMethod && (
-        <div className="agent-recharge-overlay" onMouseDown={(event) => event.target === event.currentTarget && setShowMethod(false)}>
+        <div
+          className="agent-recharge-overlay"
+          onMouseDown={(event) =>
+            event.target === event.currentTarget && setShowMethod(false)
+          }
+        >
           <form className="agent-method-modal" onSubmit={createMethod}>
             <h3>New Payment Method</h3>
             <div className="agent-method-fields">
               <label>
                 Method Name *
-                <input required placeholder="e.g. Bank Transfer — Demo" value={method.name} onChange={(event) => setMethod({ ...method, name: event.target.value })} />
+                <input
+                  required
+                  placeholder="e.g. Bank Transfer — Demo"
+                  value={method.name}
+                  onChange={(event) =>
+                    setMethod({ ...method, name: event.target.value })
+                  }
+                />
               </label>
               <label>
                 Type
-                <select value={method.type} onChange={(event) => setMethod({ ...method, type: event.target.value })}>
+                <select
+                  value={method.type}
+                  onChange={(event) =>
+                    setMethod({ ...method, type: event.target.value })
+                  }
+                >
                   <option>Bank Transfer</option>
                   <option>Crypto</option>
                   <option>Other</option>
@@ -747,23 +821,54 @@ function AgentRechargeOrders() {
               <h4>Account Details</h4>
               <label className="wide">
                 Bank Name
-                <input placeholder="e.g. Demo Bank" value={method.bank} onChange={(event) => setMethod({ ...method, bank: event.target.value })} />
+                <input
+                  placeholder="e.g. Demo Bank"
+                  value={method.bank}
+                  onChange={(event) =>
+                    setMethod({ ...method, bank: event.target.value })
+                  }
+                />
               </label>
               <label className="wide">
                 Account Name
-                <input placeholder="e.g. Demo Account" value={method.accountName} onChange={(event) => setMethod({ ...method, accountName: event.target.value })} />
+                <input
+                  placeholder="e.g. Demo Account"
+                  value={method.accountName}
+                  onChange={(event) =>
+                    setMethod({ ...method, accountName: event.target.value })
+                  }
+                />
               </label>
               <label className="wide">
                 Account Number
-                <input placeholder="Hidden in this public demo" value={method.accountNumber} onChange={(event) => setMethod({ ...method, accountNumber: event.target.value })} />
+                <input
+                  placeholder="Hidden in this public demo"
+                  value={method.accountNumber}
+                  onChange={(event) =>
+                    setMethod({ ...method, accountNumber: event.target.value })
+                  }
+                />
               </label>
               <label className="wide">
                 Routing / SWIFT
-                <input placeholder="Demo routing code" value={method.routing} onChange={(event) => setMethod({ ...method, routing: event.target.value })} />
+                <input
+                  placeholder="Demo routing code"
+                  value={method.routing}
+                  onChange={(event) =>
+                    setMethod({ ...method, routing: event.target.value })
+                  }
+                />
               </label>
               <label>
                 Display Order
-                <input type="number" min="0" value={method.order} onChange={(event) => setMethod({ ...method, order: event.target.value })} />
+                <input
+                  type="number"
+                  min="0"
+                  value={method.order}
+                  onChange={(event) =>
+                    setMethod({ ...method, order: event.target.value })
+                  }
+                />
                 <small>Lower = shown first to sellers</small>
               </label>
             </div>
@@ -780,109 +885,84 @@ function AgentRechargeOrders() {
   );
 }
 
-const demoAgentWithdrawals = [
-  {
-    id: 1,
-    seller: "Demo Merchant",
-    amount: 155,
-    method: "Bank Card",
-    account: "•••• 8383",
-    status: "Approved",
-    note: "—",
-    requested: "Aug 4, 2026 12:39 AM",
-  },
-  {
-    id: 2,
-    seller: "Demo Merchant",
-    amount: 500,
-    method: "Bank Card",
-    account: "Demo account",
-    status: "Rejected",
-    note: "Payment details could not be verified.",
-    requested: "Aug 3, 2026 12:49 AM",
-  },
-  {
-    id: 3,
-    seller: "Demo Merchant",
-    amount: 100,
-    method: "Bank Card",
-    account: "•••• 2041",
-    status: "Approved",
-    note: "—",
-    requested: "Jul 29, 2026 01:26 AM",
-  },
-  {
-    id: 4,
-    seller: "Demo Merchant",
-    amount: 166,
-    method: "Bank Card",
-    account: "•••• 9292",
-    status: "Approved",
-    note: "—",
-    requested: "Jul 28, 2026 12:35 AM",
-  },
-];
-
 function AgentWithdrawOrders() {
   const [filter, setFilter] = useState("All");
-  const [withdrawals, setWithdrawals] = useState(demoAgentWithdrawals);
+  const [withdrawals, setWithdrawals] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [rejecting, setRejecting] = useState(null);
+  const [reason, setReason] = useState("");
+
+  const load = async () => {
+    const { data } = await agentSupabase
+      .from("withdrawals")
+      .select("*,seller:profiles!withdrawals_seller_id_profiles_fkey(display_name,email)")
+      .order("created_at", { ascending: false });
+    setWithdrawals(
+      (data || []).map((row) => ({
+        id: row.id,
+        seller: row.seller?.display_name || row.seller?.email || "Seller",
+        sellerId: row.seller_id,
+        amount: Number(row.amount),
+        method: row.method,
+        account: row.account_details,
+        status: row.status,
+        note: row.rejection_reason || "—",
+        requested: new Date(row.created_at).toLocaleString(),
+      })),
+    );
+  };
+
   useEffect(() => {
-    const load = async () => {
-      const { data, error } = await agentSupabase
-        .from("withdrawals")
-        .select(
-          "*,seller:profiles!withdrawals_seller_id_fkey(display_name,email)",
-        )
-        .order("created_at", { ascending: false });
-      if (!error && data)
-        setWithdrawals(
-          data.map((row) => ({
-            id: row.id,
-            seller: row.seller?.display_name || row.seller?.email || "Seller",
-            amount: Number(row.amount),
-            method: row.method,
-            account: row.account_details,
-            status: row.status,
-            note: row.rejection_reason || "—",
-            requested: new Date(row.created_at).toLocaleString(),
-          })),
-        );
-    };
     load();
     const channel = agentSupabase
       .channel("agent-live-withdrawals")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "withdrawals" },
-        load,
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "withdrawals" }, load)
       .subscribe();
     return () => agentSupabase.removeChannel(channel);
   }, []);
-  const visible =
-    filter === "All"
-      ? withdrawals
-      : withdrawals.filter((item) => item.status === filter);
-  const pendingTotal = withdrawals
-    .filter((item) => item.status === "Pending")
-    .reduce((sum, item) => sum + item.amount, 0);
+
+  const approve = async (item) => {
+    setBusy(true);
+    const { error } = await agentSupabase
+      .from("withdrawals")
+      .update({ status: "Approved", updated_at: new Date().toISOString() })
+      .eq("id", item.id);
+    if (!error) {
+      await agentSupabase.from("wallet_transactions").insert({
+        seller_id: item.sellerId,
+        type: "Agent Debit",
+        amount: -Math.abs(item.amount),
+        note: `Withdrawal #${item.id} approved`,
+      });
+    }
+    setBusy(false);
+    await load();
+  };
+  const submitReject = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    await agentSupabase
+      .from("withdrawals")
+      .update({ status: "Rejected", rejection_reason: reason, updated_at: new Date().toISOString() })
+      .eq("id", rejecting.id);
+    setBusy(false);
+    setRejecting(null);
+    setReason("");
+    await load();
+  };
+
+  const visible = filter === "All" ? withdrawals : withdrawals.filter((item) => item.status === filter);
+  const pendingTotal = withdrawals.filter((item) => item.status === "Pending").reduce((sum, item) => sum + item.amount, 0);
+
   return (
     <div className="agent-withdraw-orders-page">
       <header>
         <h2>Finance — Withdrawals</h2>
-        <p>
-          Withdrawal requests from your sellers. Pending total: $
-          {pendingTotal.toFixed(2)}
-        </p>
+        <p>Withdrawal requests from your sellers. Pending total: ${pendingTotal.toFixed(2)}</p>
       </header>
       <nav>
         {["All", "Pending", "Approved", "Rejected"].map((item) => (
-          <button
-            type="button"
-            key={item}
-            className={filter === item ? "active" : ""}
-            onClick={() => setFilter(item)}
-          >
+          <button type="button" key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>
             {item}
           </button>
         ))}
@@ -912,127 +992,124 @@ function AgentWithdrawOrders() {
             </span>
             <span title={item.note}>{item.note}</span>
             <time>{item.requested}</time>
-            <small>{item.status}</small>
+            {item.status === "Pending" ? (
+              <span>
+                <button type="button" disabled={busy} onClick={() => approve(item)}>
+                  ✓ Approve
+                </button>
+                <button type="button" disabled={busy} onClick={() => setRejecting(item)}>
+                  × Reject
+                </button>
+              </span>
+            ) : (
+              <small>{item.status}</small>
+            )}
           </article>
         ))}
-        {!visible.length && (
-          <div className="agent-withdraw-empty">
-            No {filter.toLowerCase()} withdrawal requests.
-          </div>
-        )}
+        {!visible.length && <div className="agent-withdraw-empty">No {filter.toLowerCase()} withdrawal requests.</div>}
       </section>
+      {rejecting && (
+        <div className="agent-recharge-overlay" onMouseDown={(event) => event.target === event.currentTarget && setRejecting(null)}>
+          <form className="agent-recharge-modal" onSubmit={submitReject}>
+            <h3>Reject Withdrawal</h3>
+            <label>
+              Reason
+              <textarea required value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why is this withdrawal being rejected?" />
+            </label>
+            <footer>
+              <button type="button" onClick={() => setRejecting(null)}>
+                Cancel
+              </button>
+              <button type="submit" disabled={busy}>
+                Confirm Reject
+              </button>
+            </footer>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
 
 function AgentSellerChat() {
-  const fallbackSellers = [
-    { id: "demo-1", name: "Demo Merchant 1" },
-    { id: "demo-2", name: "Demo Merchant 2" },
-    { id: "demo-3", name: "Demo Merchant 3" },
-  ];
-  const [sellers, setSellers] = useState(fallbackSellers);
+  const [sellers, setSellers] = useState([]);
   const [sellerId, setSellerId] = useState("");
+  const [sellerProducts, setSellerProducts] = useState([]);
+  const [productId, setProductId] = useState("");
   const [message, setMessage] = useState("");
-  const [history, setHistory] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("agent_seller_chat") || "[]");
-    } catch {
-      return [];
-    }
-  });
+  const [history, setHistory] = useState([]);
   const [thread, setThread] = useState(null);
-  const load = async () => {
-    const { data: profiles } = await agentSupabase
+
+  const loadSellers = async () => {
+    const { data } = await agentSupabase
       .from("profiles")
       .select("id,display_name,email")
       .eq("role", "seller")
       .order("display_name");
-    if (profiles?.length)
-      setSellers(
-        profiles.map((item) => ({
-          id: item.id,
-          name: item.display_name || item.email.split("@")[0],
-        })),
-      );
+    setSellers((data || []).map((item) => ({ id: item.id, name: item.display_name || item.email.split("@")[0] })));
+  };
+
+  const loadHistory = async () => {
     const { data: auth } = await agentSupabase.auth.getUser();
     if (!auth?.user) return;
     const { data } = await agentSupabase
       .from("messages")
-      .select("*")
+      .select("*,product:products(id,name,product_code,sell_price,image_url)")
       .eq("channel", "agent")
       .order("created_at", { ascending: false });
-    if (data?.length)
-      setHistory(
-        data.map((item) => ({
-          id: item.id,
-          sellerId:
-            item.sender_id === auth.user.id
-              ? item.recipient_id
-              : item.sender_id,
-          mine: item.sender_id === auth.user.id,
-          text: item.body,
-          read: Boolean(item.read_at),
-          date: new Date(item.created_at).toLocaleString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-          }),
-        })),
-      );
+    setHistory(
+      (data || []).map((item) => ({
+        id: item.id,
+        sellerId: item.sender_id === auth.user.id ? item.recipient_id : item.sender_id,
+        mine: item.sender_id === auth.user.id,
+        text: item.body,
+        product: item.product,
+        date: new Date(item.created_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }),
+      })),
+    );
   };
+
   useEffect(() => {
-    load();
+    loadSellers();
+    loadHistory();
     const channel = agentSupabase
       .channel("agent-seller-chat")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "messages" },
-        load,
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, loadHistory)
       .subscribe();
     return () => agentSupabase.removeChannel(channel);
   }, []);
-  const sellerName = (id) =>
-    sellers.find((item) => item.id === id)?.name || "Demo Merchant";
+
+  useEffect(() => {
+    if (!sellerId) { setSellerProducts([]); setProductId(""); return; }
+    agentSupabase
+      .from("showcase_products")
+      .select("on_shelf,products(id,name,product_code,sell_price,image_url)")
+      .eq("seller_id", sellerId)
+      .then(({ data }) => {
+        setSellerProducts((data || []).filter((row) => row.on_shelf && row.products).map((row) => row.products));
+        setProductId("");
+      });
+  }, [sellerId]);
+
+  const sellerName = (id) => sellers.find((item) => item.id === id)?.name || "Seller";
+
   const send = async (event) => {
     event.preventDefault();
     if (!sellerId || !message.trim()) return;
-    const next = {
-      id: Date.now(),
-      sellerId,
-      mine: true,
-      text: message.trim(),
-      read: false,
-      date: new Date().toLocaleString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-    };
     const { data: auth } = await agentSupabase.auth.getUser();
-    if (auth?.user && !sellerId.startsWith("demo-")) {
-      const { data } = await agentSupabase
-        .from("messages")
-        .insert({
-          sender_id: auth.user.id,
-          recipient_id: sellerId,
-          channel: "agent",
-          body: message.trim(),
-        })
-        .select()
-        .single();
-      if (data) next.id = data.id;
-    }
-    const updated = [next, ...history];
-    setHistory(updated);
-    localStorage.setItem("agent_seller_chat", JSON.stringify(updated));
+    if (!auth?.user) return;
+    const { error } = await agentSupabase.from("messages").insert({
+      sender_id: auth.user.id,
+      recipient_id: sellerId,
+      channel: "agent",
+      body: message.trim(),
+      product_id: productId || null,
+    });
+    if (error) { console.log("AGENT CHAT SEND ERROR:", error); return; }
     setMessage("");
+    setProductId("");
   };
+
   return (
     <div className="agent-seller-chat-page">
       <header>
@@ -1041,91 +1118,68 @@ function AgentSellerChat() {
       </header>
       <form className="agent-chat-new" onSubmit={send}>
         <small>NEW MESSAGE</small>
-        <select
-          required
-          value={sellerId}
-          onChange={(event) => setSellerId(event.target.value)}
-        >
+        <select required value={sellerId} onChange={(event) => setSellerId(event.target.value)}>
           <option value="">Select seller...</option>
-          {sellers.map((seller) => (
-            <option value={seller.id} key={seller.id}>
-              {seller.name}
-            </option>
-          ))}
+          {sellers.map((seller) => <option value={seller.id} key={seller.id}>{seller.name}</option>)}
         </select>
-        <input
-          placeholder="Write your message..."
-          value={message}
-          onChange={(event) => setMessage(event.target.value)}
-        />
-        <button type="submit" disabled={!sellerId || !message.trim()}>
-          ➤ Send
-        </button>
+        {sellerId && (
+          <select value={productId} onChange={(event) => setProductId(event.target.value)}>
+            <option value="">No specific product</option>
+            {sellerProducts.map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.name || product.product_code} · ${Number(product.sell_price || 0).toFixed(2)}
+              </option>
+            ))}
+          </select>
+        )}
+        {sellerId && !sellerProducts.length && <small>This seller has no on-shelf products.</small>}
+        <input placeholder="Write your message..." value={message} onChange={(event) => setMessage(event.target.value)} />
+        <button type="submit" disabled={!sellerId || !message.trim()}>➤ Send</button>
       </form>
       <div className="agent-chat-history-title">
         <span>Message History</span>
-        <button type="button" onClick={load}>
-          ↻
-        </button>
+        <button type="button" onClick={loadHistory}>↻</button>
       </div>
       <section className="agent-chat-history">
         {history.map((item) => (
           <article key={item.id}>
             <div>
-              <strong>
-                {item.mine
-                  ? `To: ${sellerName(item.sellerId)}`
-                  : `From: ${sellerName(item.sellerId)}`}
-              </strong>
-              <small>{item.mine ? "from Demo Agent" : "seller message"}</small>
+              <strong>{item.mine ? `To: ${sellerName(item.sellerId)}` : `From: ${sellerName(item.sellerId)}`}</strong>
+              {item.product && (
+                <span className="agent-chat-product-tag">
+                  {item.product.image_url && <img src={item.product.image_url} alt="" />}
+                  {item.product.name || item.product.product_code} · ${Number(item.product.sell_price || 0).toFixed(2)}
+                </span>
+              )}
               <p>{item.text}</p>
             </div>
             <aside>
-              <span className={item.read ? "read" : "unread"}>
-                {item.read ? "Read" : "Unread"}
-              </span>
               <time>{item.date}</time>
-              <button type="button" onClick={() => setThread(item.sellerId)}>
-                ▢ View Thread
-              </button>
+              <button type="button" onClick={() => setThread(item.sellerId)}>▢ View Thread</button>
             </aside>
           </article>
         ))}
-        {!history.length && (
-          <div className="agent-chat-empty">No message history yet.</div>
-        )}
+        {!history.length && <div className="agent-chat-empty">No message history yet.</div>}
       </section>
       {thread && (
-        <div
-          className="agent-chat-thread-overlay"
-          onMouseDown={(event) =>
-            event.target === event.currentTarget && setThread(null)
-          }
-        >
+        <div className="agent-chat-thread-overlay" onMouseDown={(event) => event.target === event.currentTarget && setThread(null)}>
           <section>
             <header>
-              <div>
-                <h3>{sellerName(thread)}</h3>
-                <p>Conversation thread</p>
-              </div>
-              <button type="button" onClick={() => setThread(null)}>
-                ×
-              </button>
+              <div><h3>{sellerName(thread)}</h3><p>Conversation thread</p></div>
+              <button type="button" onClick={() => setThread(null)}>×</button>
             </header>
             <div>
-              {history
-                .filter((item) => item.sellerId === thread)
-                .slice()
-                .reverse()
-                .map((item) => (
-                  <article
-                    key={item.id}
-                    className={item.mine ? "mine" : "seller"}
-                  >
-                    <p>{item.text}</p>
-                    <time>{item.date}</time>
-                  </article>
-                ))}
+              {history.filter((item) => item.sellerId === thread).slice().reverse().map((item) => (
+                <article key={item.id} className={item.mine ? "mine" : "seller"}>
+                  {item.product && (
+                    <span className="agent-chat-product-tag">
+                      {item.product.name || item.product.product_code} · ${Number(item.product.sell_price || 0).toFixed(2)}
+                    </span>
+                  )}
+                  <p>{item.text}</p>
+                  <time>{item.date}</time>
+                </article>
+              ))}
             </div>
           </section>
         </div>
@@ -2953,15 +3007,14 @@ const demoManagedOrders = [
 ];
 
 function useLiveAgentOrders() {
-
   const [orders, setOrders] = useState(demoManagedOrders);
   const load = React.useCallback(async () => {
     const { data, error } = await agentSupabase
-    .from("orders")
-    .select(
-      "*,seller:profiles!orders_seller_id_profiles_fkey(display_name,email)",
-    )
-    .order("created_at", { ascending: false });
+      .from("orders")
+      .select(
+        "*,seller:profiles!orders_seller_id_profiles_fkey(display_name,email)",
+      )
+      .order("created_at", { ascending: false });
     if (error) console.log("ORDERS LOAD ERROR:", error);
     if (!error && data)
       setOrders(
@@ -2975,14 +3028,13 @@ function useLiveAgentOrders() {
           qty: Number(row.quantity || 1),
           sale: Number(row.sell_price || 0) * Number(row.quantity || 1),
           profit:
-          (Number(row.sell_price || 0) - Number(row.cost_price || 0)) *
+            (Number(row.sell_price || 0) - Number(row.cost_price || 0)) *
             Number(row.quantity || 1),
-            status: row.status,
-            date: new Date(row.created_at).toLocaleString(),
-          })),
-        );
-        // Temporary Code
-        
+          status: row.status,
+          date: new Date(row.created_at).toLocaleString(),
+        })),
+      );
+    // Temporary Code
   }, []);
   useEffect(() => {
     load();
@@ -3018,7 +3070,9 @@ function AgentOrderManagement() {
     (order) =>
       groups[tab].includes(order.status) &&
       [order.id, order.product, order.seller, order.customer].some((value) =>
-        String(value || "").toLowerCase().includes(search.toLowerCase()),
+        String(value || "")
+          .toLowerCase()
+          .includes(search.toLowerCase()),
       ),
   );
   const changeStatus = async (id, status) => {
@@ -3090,7 +3144,9 @@ function AgentOrderManagement() {
               ${order.profit.toFixed(2)}
             </strong>
             <select
-              className={`status-${String(order.status || "").toLowerCase().replace(" ", "-")}`}
+              className={`status-${String(order.status || "")
+                .toLowerCase()
+                .replace(" ", "-")}`}
               value={order.status || ""}
               onChange={(event) => changeStatus(order.id, event.target.value)}
             >
@@ -3754,6 +3810,7 @@ function AgentMerchantList() {
     "Add Clicks",
     "Stop Clicks",
     "Lock Shop",
+    "Unlock Shop",
     "Lock",
     "Payment",
     "✎ Edit",
@@ -3776,6 +3833,7 @@ function AgentMerchantList() {
     "Stop Clicks",
     "Click Logs",
     "Lock Shop",
+    "Unlock Shop",
   ]);
   const normalizeAction = (action) =>
     action === "✎ Edit"

@@ -429,3 +429,24 @@
 .seller-reply-overlay > form > button[type="submit"]:hover {
   background: #be123c;
 }
+
+.seller-thread-product-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+}
+.seller-thread-product-tag img {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+.seller-thread-bubble.mine .seller-thread-product-tag {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}

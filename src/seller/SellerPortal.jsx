@@ -41,12 +41,11 @@ const faqs = [
 export default function SellerPortal({ onLogout, previewMerchant = null }) {
   const [period, setPeriod] = useState("Today");
   const [openFaq, setOpenFaq] = useState(null);
-  const [shopName, setShopName] = useState(previewMerchant?.name || "Khan321");
+  const [shopName, setShopName] = useState(previewMerchant?.name || "My Shop");
   const [shopNameDraft, setShopNameDraft] = useState(
-    previewMerchant?.name || "Khan321",
+    previewMerchant?.name || "My Shop",
   );
   const [showNameModal, setShowNameModal] = useState(false);
-  const [nameChanged, setNameChanged] = useState(false);
   const [sellerView, setSellerView] = useState("home");
   const [sellerId, setSellerId] = useState(previewMerchant?.userId || null);
   const [profile, setProfile] = useState(null);
@@ -89,6 +88,7 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
         .select("id", { count: "exact" })
         .eq("seller_id", id),
     ]);
+    console.log("SELLER DASHBOARD LOAD:", { id, ordersRes, clicksRes, profileRes });
     if (profileRes.data) {
       setProfile(profileRes.data);
       setShopName(profileRes.data.display_name || shopName);
@@ -142,9 +142,36 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
       if (channel) portalClient.removeChannel(channel);
     };
   }, [sellerId, portalClient]);
+  const periodStart = (label) => {
+    const now = new Date();
+    if (label === "Today") {
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      return start;
+    }
+    if (label === "This Week") {
+      const start = new Date(now);
+      const day = start.getDay();
+      const diff = (day === 0 ? 6 : day - 1); // week starts Monday
+      start.setDate(start.getDate() - diff);
+      start.setHours(0, 0, 0, 0);
+      return start;
+    }
+    if (label === "This Month") {
+      return new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+    return null; // "Total" — no lower bound
+  };
+
+  const ordersInPeriod = useMemo(() => {
+    const start = periodStart(period);
+    if (!start) return orders;
+    return orders.filter((row) => new Date(row.created_at) >= start);
+  }, [orders, period]);
+
   const metrics = useMemo(
     () =>
-      orders.reduce(
+      ordersInPeriod.reduce(
         (result, row) => {
           const quantity = Number(row.quantity || 1);
           result.sales += Number(row.sell_price || 0) * quantity;
@@ -156,20 +183,35 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
         },
         { sales: 0, profit: 0, quantity: 0 },
       ),
-    [orders],
+    [ordersInPeriod],
   );
+
+  // Build hourly sales totals for today's chart (00:00–22:00 in 2-hour buckets, matching the existing 12-bar layout)
+  const chartBuckets = useMemo(() => {
+    const buckets = Array.from({ length: 12 }, () => 0);
+    const start = periodStart("Today");
+    orders.forEach((row) => {
+      const created = new Date(row.created_at);
+      if (created < start) return;
+      const bucketIndex = Math.min(11, Math.floor(created.getHours() / 2));
+      const quantity = Number(row.quantity || 1);
+      buckets[bucketIndex] += Number(row.sell_price || 0) * quantity;
+    });
+    const max = Math.max(1, ...buckets);
+    return buckets.map((value) => ({ value, heightPct: Math.round((value / max) * 100) }));
+  }, [orders]);
 
   const saveShopName = async (event) => {
     event.preventDefault();
     const nextName = shopNameDraft.trim();
-    if (!nextName || nameChanged) return;
+    if (!nextName || profile?.name_changed) return;
     setShopName(nextName);
-    if (sellerId)
+    if (sellerId && portalClient)
       await portalClient
         .from("profiles")
-        .update({ display_name: nextName })
+        .update({ display_name: nextName, name_changed: true })
         .eq("id", sellerId);
-    setNameChanged(true);
+    setProfile((current) => (current ? { ...current, display_name: nextName, name_changed: true } : current));
     setShowNameModal(false);
   };
 
@@ -194,6 +236,7 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
       <SellerShowcase
         client={portalClient}
         sellerId={sellerId}
+        shopLocked={profile?.shop_locked === true}
         onBack={() => setSellerView("home")}
       />
     );
@@ -260,7 +303,7 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
               <h2>{shopName}</h2>
               <button
                 type="button"
-                disabled={nameChanged}
+                disabled={profile?.name_changed === true}
                 onClick={() => {
                   setShopNameDraft(shopName);
                   setShowNameModal(true);
@@ -346,8 +389,8 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
             </div>
             <div className="chart-plot">
               <div className="chart-line">
-                {Array.from({ length: 12 }).map((_, index) => (
-                  <i key={index} />
+                {chartBuckets.map((bucket, index) => (
+                  <i key={index} style={{ height: `${Math.max(4, bucket.heightPct)}%` }} title={`$${bucket.value.toFixed(2)}`} />
                 ))}
               </div>
               <div className="chart-times">

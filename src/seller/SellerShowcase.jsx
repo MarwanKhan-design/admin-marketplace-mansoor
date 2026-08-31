@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { starterProducts } from "../admin/StoreShowcase";
 import "./SellerShowcase.css";
 
 const categories = [
@@ -15,35 +14,10 @@ const categories = [
   "Sports",
   "Women",
 ];
-const getCatalog = () => {
-  try {
-    return (
-      JSON.parse(localStorage.getItem("admin_product_catalog")) ||
-      starterProducts
-    );
-  } catch {
-    return starterProducts;
-  }
-};
-const getSelections = (catalog) => {
-  try {
-    const saved = JSON.parse(localStorage.getItem("seller_showcase_products"));
-    return (
-      saved ||
-      catalog.slice(0, 2).map((product) => ({ id: product.id, onShelf: true }))
-    );
-  } catch {
-    return catalog
-      .slice(0, 2)
-      .map((product) => ({ id: product.id, onShelf: true }));
-  }
-};
 
-export default function SellerShowcase({ client, sellerId, onBack }) {
-  const [catalog, setCatalog] = useState(getCatalog);
-  const [selections, setSelections] = useState(() =>
-    getSelections(getCatalog()),
-  );
+export default function SellerShowcase({ client, sellerId, shopLocked, onBack }) {
+  const [catalog, setCatalog] = useState([]);
+  const [selections, setSelections] = useState([]);
   const [category, setCategory] = useState("All");
   const [shelf, setShelf] = useState("On Shelf");
   const [adding, setAdding] = useState(false);
@@ -104,7 +78,6 @@ export default function SellerShowcase({ client, sellerId, onBack }) {
 
   const saveSelections = (next) => {
     setSelections(next);
-    localStorage.setItem("seller_showcase_products", JSON.stringify(next));
   };
   const selectedProducts = useMemo(
     () =>
@@ -157,7 +130,7 @@ export default function SellerShowcase({ client, sellerId, onBack }) {
         .eq("seller_id", sellerId)
         .eq("product_id", product.dbId);
   };
-  const refreshCatalog = () => setCatalog(getCatalog());
+  const refreshCatalog = () => {};
 
   if (adding)
     return (
@@ -214,6 +187,25 @@ export default function SellerShowcase({ client, sellerId, onBack }) {
         </div>
       </main>
     );
+
+  if (shopLocked) {
+    return (
+      <main className="seller-showcase-page">
+        <div className="seller-showcase-shell">
+          <header>
+            <button type="button" onClick={onBack}>
+              ‹
+            </button>
+            <h1>Showcase</h1>
+            <span />
+          </header>
+          <div className="seller-showcase-empty">
+            Your shop is currently locked. Products are hidden from buyers until an admin or agent unlocks your store.
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="seller-showcase-page">

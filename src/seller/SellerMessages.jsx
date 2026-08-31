@@ -30,9 +30,9 @@ export default function SellerMessages({ client, sellerId, onBack }) {
         client
           .from("messages")
           .select(
-            "*,sender:profiles!messages_sender_id_profiles_fkey(display_name,email),recipient:profiles!messages_recipient_id_profiles_fkey(display_name,email)",
+            "*,sender:profiles!messages_sender_id_profiles_fkey(display_name,email),recipient:profiles!messages_recipient_id_profiles_fkey(display_name,email),product:products(id,name,product_code,sell_price,image_url)",
           )
-          .in("channel", ["platform", "buyer"])
+          .in("channel", ["platform", "buyer", "agent"])
           .or(`sender_id.eq.${sellerId},recipient_id.eq.${sellerId}`)
           .order("created_at", { ascending: true }),
         client
@@ -64,7 +64,7 @@ export default function SellerMessages({ client, sellerId, onBack }) {
 
       const rows = messagesRes.data || [];
       setBuyerMessages(rows.filter((item) => item.channel === "buyer"));
-      setPlatformMessages(rows.filter((item) => item.channel === "platform"));
+      setPlatformMessages(rows.filter((item) => item.channel === "platform" || item.channel === "agent"));
 
       setLoading(false);
     };
@@ -102,6 +102,7 @@ export default function SellerMessages({ client, sellerId, onBack }) {
         id: item.id,
         mine: item.sender_id === sellerId,
         text: item.body,
+        product: item.product,
         date: new Date(item.created_at).toLocaleString(),
         createdAt: item.created_at,
       });
@@ -289,6 +290,12 @@ export default function SellerMessages({ client, sellerId, onBack }) {
                     key={item.id}
                     className={`seller-thread-bubble ${item.mine ? "mine" : "theirs"}`}
                   >
+                    {item.product && (
+                      <span className="seller-thread-product-tag">
+                        {item.product.image_url && <img src={item.product.image_url} alt="" />}
+                        {item.product.name || item.product.product_code} · ${Number(item.product.sell_price || 0).toFixed(2)}
+                      </span>
+                    )}
                     <p>{item.text}</p>
                     <time>{item.date}</time>
                   </div>

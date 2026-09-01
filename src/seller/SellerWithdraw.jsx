@@ -1,5 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./SellerWithdraw.css";
+
+const METHOD_TYPE = {
+  "Bank Card": "bank_card",
+  "E-Wallet": "e_wallet",
+  Crypto: "digital_currency",
+};
+
+const CRYPTO_NETWORKS = [
+  { key: "trc20", label: "USDT (TRC20)" },
+  { key: "erc20", label: "USDT (ERC20)" },
+  { key: "bep20", label: "USDT (BEP20)" },
+];
 
 export default function SellerWithdraw({
   client,
@@ -7,16 +19,20 @@ export default function SellerWithdraw({
   onBack,
   recordsOnly = false,
   onNewWithdrawal,
+  onBindMethod,
+  availableBalance = 0,
 }) {
   const [method, setMethod] = useState("");
-  const [account, setAccount] = useState("");
+  const [network, setNetwork] = useState("");
   const [amount, setAmount] = useState("");
   const [tradePassword, setTradePassword] = useState("");
   const [records, setRecords] = useState([]);
   const [notice, setNotice] = useState("");
+  const [formError, setFormError] = useState("");
   const [methodPickerOpen, setMethodPickerOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("All");
   const [loading, setLoading] = useState(true);
+  const [paymentMethods, setPaymentMethods] = useState({});
 
   const visibleRecords =
     statusFilter === "All"
@@ -39,7 +55,9 @@ export default function SellerWithdraw({
         method: item.method,
         account: item.account_details,
         date: new Date(item.created_at).toLocaleString(),
-        updated: item.updated_at ? new Date(item.updated_at).toLocaleString() : new Date(item.created_at).toLocaleString(),
+        updated: item.updated_at
+          ? new Date(item.updated_at).toLocaleString()
+          : new Date(item.created_at).toLocaleString(),
         status: item.status,
         reason: item.rejection_reason,
       })),
@@ -47,34 +65,117 @@ export default function SellerWithdraw({
     setLoading(false);
   };
 
+  const loadPaymentMethods = async () => {
+    if (!client || !sellerId) return;
+    const { data, error } = await client
+      .from("payment_methods")
+      .select("method_type,details")
+      .eq("seller_id", sellerId);
+    if (error) {
+      console.log("PAYMENT METHODS LOAD ERROR:", error);
+      return;
+    }
+    const map = {};
+    (data || []).forEach((row) => {
+      map[row.method_type] = row.details || {};
+    });
+    setPaymentMethods(map);
+  };
+
   useEffect(() => {
     loadCloudRecords();
+    loadPaymentMethods();
     if (!client) return;
     const channel = client
       .channel("seller-withdrawals")
-      .on("postgres_changes", { event: "*", schema: "public", table: "withdrawals" }, loadCloudRecords)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "withdrawals" },
+        loadCloudRecords,
+      )
       .subscribe();
     return () => client.removeChannel(channel);
   }, [client, sellerId]);
 
+  const boundDetails = method ? paymentMethods[METHOD_TYPE[method]] : null;
+  const availableNetworks = useMemo(() => {
+    if (method !== "Crypto" || !boundDetails) return [];
+    return CRYPTO_NETWORKS.filter((item) => boundDetails[item.key]);
+  }, [method, boundDetails]);
+
   const selectMethod = (selectedMethod) => {
+    const bound = paymentMethods[METHOD_TYPE[selectedMethod]];
+    if (!bound) {
+      setMethodPickerOpen(false);
+      const view =
+        selectedMethod === "Bank Card"
+          ? "bank-card"
+          : selectedMethod === "E-Wallet"
+            ? "e-wallet"
+            : "digital-currency";
+      onBindMethod?.(view);
+      return;
+    }
     setMethod(selectedMethod);
-    setAccount("");
+    if (selectedMethod === "Crypto") {
+      const firstNetwork = CRYPTO_NETWORKS.find((item) => bound[item.key]);
+      setNetwork(firstNetwork?.key || "");
+    } else {
+      setNetwork("");
+    }
     setMethodPickerOpen(false);
+  };
+
+  const accountSummary = () => {
+    if (!method || !boundDetails) return "";
+    if (method === "Bank Card")
+      return `${boundDetails.name} · ${boundDetails.bankName} · ${boundDetails.cardNumber}`;
+    if (method === "E-Wallet")
+      return `${boundDetails.walletName} · ${boundDetails.walletNumber} (${boundDetails.walletEmail})`;
+    if (method === "Crypto" && network)
+      return `${CRYPTO_NETWORKS.find((item) => item.key === network)?.label} · ${boundDetails[network]}`;
+    return "";
   };
 
   const submit = async (event) => {
     event.preventDefault();
     if (!client || !sellerId) return;
+    setFormError("");
+    if (!method || !boundDetails) {
+      setFormError("Select a bound withdrawal method first.");
+      return;
+    }
+    if (method === "Crypto" && !network) {
+      setFormError("Select a network for your crypto withdrawal.");
+      return;
+    }
+    const requested = Number(amount);
+    if (!requested || requested <= 0) {
+      setFormError("Enter a valid withdrawal amount.");
+      return;
+    }
+    if (availableBalance <= 0) {
+      setFormError("You have no available balance to withdraw.");
+      return;
+    }
+    if (requested > availableBalance) {
+      setFormError(
+        `You can withdraw up to $${availableBalance.toFixed(2)}. That exceeds your available balance.`,
+      );
+      return;
+    }
     const { error } = await client.from("withdrawals").insert({
       seller_id: sellerId,
-      amount: Number(amount),
+      amount: requested,
       method,
-      account_details: account,
+      account_details: accountSummary(),
       status: "Pending",
     });
     if (error) {
       console.log("WITHDRAW SUBMIT ERROR:", error);
+      setFormError(
+        error.message || "Something went wrong submitting your withdrawal.",
+      );
       return;
     }
     setAmount("");
@@ -106,6 +207,12 @@ export default function SellerWithdraw({
         {!recordsOnly && (
           <>
             {notice && <div className="withdraw-success-notice">{notice}</div>}
+            {formError && (
+              <div className="withdraw-error-notice">{formError}</div>
+            )}
+            <div className="withdraw-info">
+              Available to withdraw: ${availableBalance.toFixed(2)}
+            </div>
             <div className="withdraw-info">
               Withdrawal requests are reviewed by our team and processed within
               1–3 business days. Your balance will be held until the request is
@@ -123,23 +230,31 @@ export default function SellerWithdraw({
                   <span>›</span>
                 </button>
               </label>
-              <label>
-                Account Details
-                <input
-                  required
-                  placeholder={
-                    method === "Bank Card"
-                      ? "Bank account number / name"
-                      : method === "E-Wallet"
-                        ? "E-wallet account number / name"
-                        : method === "Crypto"
-                          ? "Wallet address / network"
-                          : "Enter account details"
-                  }
-                  value={account}
-                  onChange={(event) => setAccount(event.target.value)}
-                />
-              </label>
+              {method && boundDetails && (
+                <label>
+                  Account Details
+                  <div className="withdraw-bound-details">
+                    {method === "Crypto" && availableNetworks.length > 1 && (
+                      <select
+                        value={network}
+                        onChange={(event) => setNetwork(event.target.value)}
+                      >
+                        {availableNetworks.map((item) => (
+                          <option key={item.key} value={item.key}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <span>{accountSummary()}</span>
+                  </div>
+                </label>
+              )}
+              {method && !boundDetails && (
+                <div className="withdraw-error-notice">
+                  No {method} on file. Please bind one first.
+                </div>
+              )}
               <label>
                 Amount $
                 <input
@@ -162,7 +277,12 @@ export default function SellerWithdraw({
                   onChange={(event) => setTradePassword(event.target.value)}
                 />
               </label>
-              <button type="submit">Withdraw</button>
+              <button
+                type="submit"
+                disabled={availableBalance <= 0 || !boundDetails}
+              >
+                Withdraw
+              </button>
             </form>
           </>
         )}
@@ -270,14 +390,17 @@ export default function SellerWithdraw({
               aria-modal="true"
               aria-label="Choose withdrawal method"
             >
-              <p>Please bind a payment method first</p>
+              <p>Select a bound payment method</p>
               {["Bank Card", "E-Wallet", "Crypto"].map((option) => (
                 <button
                   type="button"
                   key={option}
                   onClick={() => selectMethod(option)}
                 >
-                  <span>{option}</span>
+                  <span>
+                    {option}
+                    {!paymentMethods[METHOD_TYPE[option]] && " — not bound"}
+                  </span>
                   <span>›</span>
                 </button>
               ))}

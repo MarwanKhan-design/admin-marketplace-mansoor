@@ -171,7 +171,9 @@ export default function SellerWallet({
       <SellerWithdraw
         client={client}
         sellerId={sellerId}
+        availableBalance={assets - frozen}
         onBack={() => setWalletView("wallet")}
+        onBindMethod={(view) => setWalletView(view)}
       />
     );
   if (walletView === "withdraw-records")
@@ -179,9 +181,11 @@ export default function SellerWallet({
       <SellerWithdraw
         client={client}
         sellerId={sellerId}
+        availableBalance={assets - frozen}
         recordsOnly
         onBack={() => setWalletView("wallet")}
         onNewWithdrawal={() => setWalletView("withdraw")}
+        onBindMethod={(view) => setWalletView(view)}
       />
     );
   if (walletView === "bank-card")

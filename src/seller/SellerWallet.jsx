@@ -88,6 +88,8 @@ export default function SellerWallet({
   const [walletView, setWalletView] = useState("wallet");
   const [liveTransactions, setLiveTransactions] = useState([]);
   const [frozen, setFrozen] = useState(0);
+  const [settled, setSettled] = useState(0);
+  const [unsettled, setUnsettled] = useState(0);
   useEffect(() => {
     if (!sellerId) return;
     Promise.all([
@@ -100,7 +102,11 @@ export default function SellerWallet({
         .from("balance_locks")
         .select("amount,status")
         .eq("seller_id", sellerId),
-    ]).then(([txnRes, lockRes]) => {
+      client
+        .from("orders")
+        .select("status,sell_price,quantity")
+        .eq("seller_id", sellerId),
+    ]).then(([txnRes, lockRes, ordersRes]) => {
       setLiveTransactions(
         (txnRes.data || []).map((row) => ({
           id: row.id,
@@ -118,6 +124,21 @@ export default function SellerWallet({
         (lockRes.data || [])
           .filter((row) => String(row.status).toLowerCase() === "active")
           .reduce((sum, row) => sum + Number(row.amount || 0), 0),
+      );
+      const orderRows = ordersRes.data || [];
+      const revenueOf = (row) =>
+        Number(row.sell_price || 0) * Number(row.quantity || 1);
+      setSettled(
+        orderRows
+          .filter((row) => row.status === "Completed")
+          .reduce((sum, row) => sum + revenueOf(row), 0),
+      );
+      setUnsettled(
+        orderRows
+          .filter((row) =>
+            ["Pending Ship", "Pending Receive", "Shipped"].includes(row.status),
+          )
+          .reduce((sum, row) => sum + revenueOf(row), 0),
       );
     });
   }, [client, sellerId]);
@@ -224,11 +245,11 @@ export default function SellerWallet({
             <span>Frozen</span>
           </div>
           <div>
-            <strong>$0.00</strong>
+            <strong>${settled.toFixed(2)}</strong>
             <span>Settled</span>
           </div>
           <div>
-            <strong>$0.00</strong>
+            <strong>${unsettled.toFixed(2)}</strong>
             <span>Unsettled</span>
           </div>
         </section>

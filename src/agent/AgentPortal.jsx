@@ -3,6 +3,18 @@ import { agentSupabase } from "../shared/supabase";
 import MerchantFinanceModals from "../shared/MerchantFinanceModals";
 import MerchantControlModals from "../shared/MerchantControlModals";
 import MerchantActivityModals from "../shared/MerchantActivityModals";
+import {
+  merchantActionKind,
+  normalizeMerchantAction,
+} from "../shared/merchantActions";
+import {
+  fetchPagedRows,
+  fetchWalletTransactions,
+  formatUsd,
+  parseMoney,
+  rowSellerId,
+  walletTotalsBySeller,
+} from "../shared/wallet";
 import "./AgentPortal.css";
 import "./AgentTeam.css";
 import "./AgentUnregistered.css";
@@ -1052,11 +1064,14 @@ function AgentSellerChat() {
   const loadHistory = async () => {
     const { data: auth } = await agentSupabase.auth.getUser();
     if (!auth?.user) return;
-    const { data } = await agentSupabase
+    const { data, error } = await agentSupabase
       .from("messages")
       .select("*,product:products(id,name,product_code,sell_price,image_url)")
       .eq("channel", "agent")
       .order("created_at", { ascending: false });
+    if (error) console.log("AGENT HISTORY LOAD ERROR:", error);
+    console.log("AGENT AUTH UID:", auth.user.id);
+    console.log("ROWS RETURNED:", data?.length, data);
     setHistory(
       (data || []).map((item) => ({
         id: item.id,
@@ -3739,36 +3754,47 @@ function AgentMerchantList() {
   const [modal, setModal] = useState(null);
   const loadMerchants = async () => {
     setLoading(true);
-    const [profileRes, transactionRes, lockRes] = await Promise.all([
-      agentSupabase
+    const [profileRes, transactions, lockRows, rechargeRows, withdrawalRows] =
+      await Promise.all([
+        agentSupabase
+          .from("profiles")
+          .select("id,email,display_name,created_at,credit_score,allow_login,balance,wallet_balance")
+          .eq("role", "seller")
+          .order("created_at", { ascending: false }),
+        fetchWalletTransactions(agentSupabase),
+        fetchPagedRows(agentSupabase, "balance_locks"),
+        fetchPagedRows(agentSupabase, "recharge_requests"),
+        fetchPagedRows(agentSupabase, "withdrawals"),
+      ]);
+    if (profileRes.error) {
+      const retry = await agentSupabase
         .from("profiles")
         .select("id,email,display_name,created_at,credit_score,allow_login")
         .eq("role", "seller")
-        .order("created_at", { ascending: false }),
-      agentSupabase.from("wallet_transactions").select("seller_id,amount"),
-      agentSupabase.from("balance_locks").select("seller_id,amount,status"),
-    ]);
+        .order("created_at", { ascending: false });
+      if (!retry.error) profileRes.data = retry.data;
+      profileRes.error = retry.error;
+    }
     if (!profileRes.error) {
-      const balances = (transactionRes.data || []).reduce(
-        (map, row) =>
-          map.set(
-            row.seller_id,
-            (map.get(row.seller_id) || 0) + Number(row.amount || 0),
-          ),
-        new Map(),
+      const balances = walletTotalsBySeller(
+        transactions,
+        rechargeRows,
+        withdrawalRows,
       );
-      const frozen = (lockRes.data || [])
+      const frozen = (lockRows || [])
         .filter((row) => String(row.status).toLowerCase() === "active")
-        .reduce(
-          (map, row) =>
-            map.set(
-              row.seller_id,
-              (map.get(row.seller_id) || 0) + Number(row.amount || 0),
-            ),
-          new Map(),
-        );
+        .reduce((map, row) => {
+          const id = rowSellerId(row);
+          if (!id) return map;
+          return map.set(id, (map.get(id) || 0) + parseMoney(row.amount));
+        }, new Map());
       setMerchants(
-        (profileRes.data || []).map((profile) => ({
+        (profileRes.data || []).map((profile) => {
+          const id = String(profile.id);
+          const total = balances.has(id)
+            ? balances.get(id)
+            : parseMoney(profile.balance ?? profile.wallet_balance);
+          return {
           userId: profile.id,
           id: profile.id.slice(0, 8).toUpperCase(),
           initial: (profile.display_name ||
@@ -3776,8 +3802,8 @@ function AgentMerchantList() {
             "S")[0].toUpperCase(),
           name: profile.display_name || profile.email.split("@")[0],
           email: profile.email,
-          balance: `$${(balances.get(profile.id) || 0).toFixed(2)}`,
-          frozen: `$${(frozen.get(profile.id) || 0).toFixed(2)} frozen`,
+          balance: formatUsd(total),
+          frozen: `${formatUsd(frozen.get(id) || 0)} frozen`,
           credit: profile.credit_score ?? 100,
           status: profile.allow_login === false ? "Suspended" : "Active",
           joined: new Date(profile.created_at).toLocaleDateString("en-US", {
@@ -3785,7 +3811,8 @@ function AgentMerchantList() {
             day: "numeric",
             year: "numeric",
           }),
-        })),
+          };
+        }),
       );
     }
     setLoading(false);
@@ -3811,36 +3838,14 @@ function AgentMerchantList() {
     "Stop Clicks",
     "Lock Shop",
     "Unlock Shop",
-    "Lock",
+    "Freeze",
+    "Unfreeze",
     "Payment",
     "✎ Edit",
     "◉ Risk",
     "Order",
     "Click Logs",
   ];
-  const financeActions = new Set(["Balance", "Lock", "Logs", "Payment"]);
-  const controlActions = new Set([
-    "Reset Pwd",
-    "Kick",
-    "Login",
-    "Showcase",
-    "✎ Edit",
-    "◉ Risk",
-  ]);
-  const activityActions = new Set([
-    "Order",
-    "Add Clicks",
-    "Stop Clicks",
-    "Click Logs",
-    "Lock Shop",
-    "Unlock Shop",
-  ]);
-  const normalizeAction = (action) =>
-    action === "✎ Edit"
-      ? "Edit"
-      : action === "◉ Risk"
-        ? "Risk Control"
-        : action;
   return (
     <div className="agent-merchant-page">
       <header>
@@ -3925,17 +3930,10 @@ function AgentMerchantList() {
                   className={`tone-${index % 8}`}
                   key={action}
                   onClick={() =>
-                    (financeActions.has(action) ||
-                      controlActions.has(action) ||
-                      activityActions.has(action)) &&
                     setModal({
                       merchant,
-                      action: normalizeAction(action),
-                      kind: financeActions.has(action)
-                        ? "finance"
-                        : controlActions.has(action)
-                          ? "control"
-                          : "activity",
+                      action: normalizeMerchantAction(action),
+                      kind: merchantActionKind(action),
                     })
                   }
                 >
@@ -3998,12 +3996,8 @@ function AgentMerchantList() {
           openAction={(action) =>
             setModal({
               merchant: modal.merchant,
-              action,
-              kind: financeActions.has(action)
-                ? "finance"
-                : controlActions.has(action)
-                  ? "control"
-                  : "activity",
+              action: normalizeMerchantAction(action),
+              kind: merchantActionKind(action),
             })
           }
         />

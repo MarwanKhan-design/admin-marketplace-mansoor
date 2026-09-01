@@ -33,10 +33,10 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user();
 
 create or replace function public.is_admin() returns boolean language sql stable security definer set search_path=public as $$
-  select exists(select 1 from public.profiles where id=auth.uid() and role='admin');
+  select exists(select 1 from public.profiles where id=auth.uid() and lower(trim(role))='admin');
 $$;
 create or replace function public.is_agent() returns boolean language sql stable security definer set search_path=public as $$
-  select exists(select 1 from public.profiles where id=auth.uid() and role='agent');
+  select exists(select 1 from public.profiles where id=auth.uid() and lower(trim(role))='agent');
 $$;
 
 create table if not exists public.products (
@@ -139,6 +139,20 @@ create policy "feedback agent update" on public.feedback_tickets for update to a
 create policy "withdrawals agent read" on public.withdrawals for select to authenticated using (public.is_agent());
 create policy "transactions agent read" on public.wallet_transactions for select to authenticated using (public.is_agent());
 create policy "transactions agent insert" on public.wallet_transactions for insert to authenticated with check (public.is_agent());
+
+create or replace function public.list_wallet_transactions()
+returns setof public.wallet_transactions
+language sql
+stable
+security definer
+set search_path=public
+as $$
+  select *
+  from public.wallet_transactions
+  where public.is_admin() or public.is_agent() or seller_id = auth.uid();
+$$;
+revoke all on function public.list_wallet_transactions() from public;
+grant execute on function public.list_wallet_transactions() to authenticated;
 create policy "payments agent read" on public.payment_methods for select to authenticated using (public.is_agent());
 create policy "payments agent insert" on public.payment_methods for insert to authenticated with check (public.is_agent());
 create policy "payments agent update" on public.payment_methods for update to authenticated using (public.is_agent()) with check (public.is_agent());

@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import './Dashboard.css';
 import { adminSupabase } from '../shared/supabase';
+import {
+  fetchPagedRows,
+  fetchWalletTransactions,
+  isCreditTxn,
+  parseMoney,
+} from '../shared/wallet';
 
 const TREND_DAYS = 30;
 const CHART_WIDTH = 1200;
@@ -27,11 +33,7 @@ const emptyStats = {
   pendingRecharge: 0,
 };
 
-const fetchRows = async (table, columns) => {
-  if (!adminSupabase) return [];
-  const { data, error } = await adminSupabase.from(table).select(columns);
-  return error ? [] : data || [];
-};
+const money = (value) => parseMoney(value).toFixed(2);
 
 const isSameLocalDay = (value, now = new Date()) => {
   const date = new Date(value);
@@ -63,14 +65,6 @@ const lastNDayKeys = (count) => {
   }
   return keys;
 };
-
-const isRechargeTxn = (row) => {
-  const amount = Number(row.amount || 0);
-  if (amount <= 0) return false;
-  return !/debit|withdraw/i.test(String(row.type || ''));
-};
-
-const money = (value) => Number(value || 0).toFixed(2);
 
 const formatAxisTick = (value, moneyScale) => {
   const amount = Number(value) || 0;
@@ -151,11 +145,11 @@ export default function Dashboard({ onOpenMerchants }) {
           .from('profiles')
           .select('*')
           .order('created_at', { ascending: false }),
-        fetchRows('wallet_transactions', 'amount,type,created_at,seller_id'),
-        fetchRows('withdrawals', 'amount,status,created_at,updated_at'),
-        fetchRows('feedback_tickets', 'id,status'),
-        fetchRows('recharge_requests', 'id,amount,status,created_at'),
-        fetchRows('payment_methods', 'seller_id'),
+        fetchWalletTransactions(adminSupabase),
+        fetchPagedRows(adminSupabase, 'withdrawals'),
+        fetchPagedRows(adminSupabase, 'feedback_tickets'),
+        fetchPagedRows(adminSupabase, 'recharge_requests'),
+        fetchPagedRows(adminSupabase, 'payment_methods'),
       ]);
 
     const profiles = profilesRes.error ? [] : profilesRes.data || [];
@@ -177,19 +171,26 @@ export default function Dashboard({ onOpenMerchants }) {
       (row) => String(row.application_status || '').toLowerCase() === 'pending',
     ).length;
 
-    const rechargeTxns = transactions.filter(isRechargeTxn);
-    const totalRecharge = rechargeTxns.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const rechargeTxns = [
+      ...transactions.filter(isCreditTxn),
+      ...rechargeRequests.filter(
+        (row) =>
+          String(row.status || '').toLowerCase() === 'approved' &&
+          !transactions.length,
+      ),
+    ];
+    const totalRecharge = rechargeTxns.reduce((sum, row) => sum + parseMoney(row.amount), 0);
     const rechargeToday = rechargeTxns
       .filter((row) => isSameLocalDay(row.created_at))
-      .reduce((sum, row) => sum + Number(row.amount || 0), 0);
+      .reduce((sum, row) => sum + parseMoney(row.amount), 0);
 
     const approvedWithdrawals = withdrawals.filter(
       (row) => String(row.status || '').toLowerCase() === 'approved',
     );
-    const totalWithdraw = approvedWithdrawals.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const totalWithdraw = approvedWithdrawals.reduce((sum, row) => sum + parseMoney(row.amount), 0);
     const withdrawToday = approvedWithdrawals
       .filter((row) => isSameLocalDay(row.updated_at || row.created_at))
-      .reduce((sum, row) => sum + Number(row.amount || 0), 0);
+      .reduce((sum, row) => sum + parseMoney(row.amount), 0);
     const pendingWithdraw = withdrawals.filter(
       (row) => String(row.status || '').toLowerCase() === 'pending',
     ).length;
@@ -237,11 +238,11 @@ export default function Dashboard({ onOpenMerchants }) {
     });
     rechargeTxns.forEach((row) => {
       const index = indexByDay[dayKey(row.created_at)];
-      if (index !== undefined) rechargeCounts[index] += Number(row.amount || 0);
+      if (index !== undefined) rechargeCounts[index] += parseMoney(row.amount);
     });
     approvedWithdrawals.forEach((row) => {
       const index = indexByDay[dayKey(row.updated_at || row.created_at)];
-      if (index !== undefined) withdrawCounts[index] += Number(row.amount || 0);
+      if (index !== undefined) withdrawCounts[index] += parseMoney(row.amount);
     });
 
     setTrend({

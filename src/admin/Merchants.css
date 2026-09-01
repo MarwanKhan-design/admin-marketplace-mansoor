@@ -54,6 +54,12 @@
   cursor: pointer;
 }
 
+.merchant-top-btn.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .merchant-top-btn {
   padding: 0 16px;
 }
@@ -146,6 +152,45 @@
   border-color: #2563eb;
 }
 
+.merchant-extra-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin: -6px 0 18px;
+  padding: 14px 16px;
+  background: #ffffff;
+  border: 1px solid #dfe4ea;
+  border-radius: 12px;
+}
+
+.merchant-extra-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.merchant-extra-filters select {
+  height: 40px;
+  min-width: 140px;
+  padding: 0 10px;
+  border: 1px solid #dfe4ea;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.merchant-extra-filters button {
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid #dfe4ea;
+  border-radius: 8px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
 
 /* =========================================================
    TABLE WRAPPER
@@ -171,7 +216,7 @@
 .merchant-table {
   width: 100%;
 
-  min-width: 1250px;
+  min-width: 1480px;
 
   border-collapse: collapse;
 }
@@ -264,6 +309,33 @@
   font-weight: 600;
 }
 
+.merchant-balance b,
+.merchant-balance small {
+  display: block;
+}
+
+.merchant-balance small {
+  margin-top: 4px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.merchant-balance .merchant-frozen {
+  color: #d97706;
+}
+
+.merchant-joined {
+  color: #64748b !important;
+  white-space: nowrap;
+}
+
+.locked-status {
+  display: inline-flex;
+  margin-top: 6px;
+  color: #be123c;
+  background: #fff1f2;
+}
+
 
 /* =========================================================
    CREDIT
@@ -318,7 +390,7 @@
    ========================================================= */
 
 .merchant-action-buttons {
-  max-width: 255px;
+  max-width: 420px;
 
   display: flex;
   flex-wrap: wrap;

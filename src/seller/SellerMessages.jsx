@@ -96,7 +96,7 @@ export default function SellerMessages({ client, sellerId, onBack }) {
       const partnerName =
         partnerProfile?.display_name || partnerProfile?.email || "User";
       if (!byPartner.has(partnerId)) {
-        byPartner.set(partnerId, { partnerId, partnerName, messages: [] });
+        byPartner.set(partnerId, { partnerId, partnerName, messages: [], channel: item.channel });
       }
       byPartner.get(partnerId).messages.push({
         id: item.id,
@@ -141,7 +141,7 @@ export default function SellerMessages({ client, sellerId, onBack }) {
     const { error } = await client.from("messages").insert({
       sender_id: sellerId,
       recipient_id: openThread.partnerId,
-      channel: openThread.type,
+      channel: activeThread?.channel || openThread.type,
       body: reply.trim(),
     });
     if (error) {

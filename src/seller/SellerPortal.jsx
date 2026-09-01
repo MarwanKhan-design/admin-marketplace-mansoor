@@ -206,7 +206,7 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
   }, [orders]);
 
   const toggleLanguage = async () => {
-    const next = language === "en" ? "ur" : "en";
+    const next = language === "en" ? "zh" : "en";
     setLanguage(next);
     if (sellerId && portalClient)
       await portalClient.from("profiles").update({ language: next }).eq("id", sellerId);
@@ -300,8 +300,8 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
             >
               ◌
             </button>
-            <button type="button" onClick={toggleLanguage} aria-label="Language" title={language === "en" ? "اردو" : "English"}>
-              {language === "en" ? "EN" : "UR"}
+            <button type="button" onClick={toggleLanguage} aria-label="Language" title={language === "en" ? "中文" : "English"}>
+              {language === "en" ? "EN" : "中文"}
             </button>
           </div>
         </header>

@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./SellerMessages.css";
+import { translations } from "./translations";
 
-const tabs = [
-  "Announcements",
-  "Order Notices",
-  "Buyer Messages",
-  "Platform Msgs",
+const tabKeys = [
+  "tabAnnouncements",
+  "tabOrderNotices",
+  "tabBuyerMessages",
+  "tabPlatformMsgs",
 ];
 
-export default function SellerMessages({ client, sellerId, onBack }) {
+export default function SellerMessages({ client, sellerId, language = "en", onBack }) {
+  const t = translations[language] || translations.en;
   const [activeTab, setActiveTab] = useState("Announcements");
   const [announcements, setAnnouncements] = useState([]);
   const [notices, setNotices] = useState([]);
@@ -158,20 +160,24 @@ export default function SellerMessages({ client, sellerId, onBack }) {
           <button type="button" onClick={onBack}>
             ‹
           </button>
-          <h1>Messages</h1>
+          <h1>{t.messages}</h1>
           <span />
         </header>
         <nav className="seller-message-tabs">
-          {tabs.map((tab) => (
-            <button
-              type="button"
-              key={tab}
-              className={activeTab === tab ? "active" : ""}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
+          {tabKeys.map((key, index) => {
+            const labels = ["Announcements", "Order Notices", "Buyer Messages", "Platform Msgs"];
+            const label = labels[index];
+            return (
+              <button
+                type="button"
+                key={label}
+                className={activeTab === label ? "active" : ""}
+                onClick={() => setActiveTab(label)}
+              >
+                {t[key]}
+              </button>
+            );
+          })}
         </nav>
         {activeTab === "Announcements" && (
           <section className="seller-announcement-list">
@@ -185,7 +191,7 @@ export default function SellerMessages({ client, sellerId, onBack }) {
               </article>
             ))}
             {!loading && !announcements.length && (
-              <div className="seller-messages-empty">No announcements yet.</div>
+              <div className="seller-messages-empty">{t.noAnnouncements}</div>
             )}
           </section>
         )}
@@ -196,14 +202,14 @@ export default function SellerMessages({ client, sellerId, onBack }) {
                 <div>
                   <strong>{item.title}</strong>
                   <p>{item.message}</p>
-                  <button type="button">Order No: {item.order}</button>
+                  <button type="button">{t.orderNo}: {item.order}</button>
                 </div>
                 <time>{item.date}</time>
                 <b>›</b>
               </article>
             ))}
             {!loading && !notices.length && (
-              <div className="seller-messages-empty">No order notices yet.</div>
+              <div className="seller-messages-empty">{t.noOrderNotices}</div>
             )}
           </section>
         )}
@@ -229,13 +235,13 @@ export default function SellerMessages({ client, sellerId, onBack }) {
                     })
                   }
                 >
-                  ▱ View Thread
+                  ▱ {t.viewThread}
                 </button>
               </article>
             ))}
             {!loading && !buyerThreads.length && (
               <div className="seller-messages-empty">
-                No buyer messages yet.
+                {t.noBuyerMessages}
               </div>
             )}
           </section>
@@ -258,14 +264,14 @@ export default function SellerMessages({ client, sellerId, onBack }) {
                       })
                     }
                   >
-                    ▱ View Thread
+                    ▱ {t.viewThread}
                   </button>
                 </div>
               </article>
             ))}
             {!loading && !platformThreads.length && (
               <div className="seller-messages-empty">
-                No platform messages yet.
+                {t.noPlatformMessages}
               </div>
             )}
           </section>
@@ -304,11 +310,11 @@ export default function SellerMessages({ client, sellerId, onBack }) {
               <textarea
                 autoFocus
                 required
-                placeholder="Write your reply..."
+                placeholder={t.writeReply}
                 value={reply}
                 onChange={(event) => setReply(event.target.value)}
               />
-              <button type="submit">Send Reply</button>
+              <button type="submit">{t.sendReply}</button>
             </form>
           </div>
         )}

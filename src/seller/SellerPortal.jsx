@@ -231,6 +231,7 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
       <SellerMessages
         client={portalClient}
         sellerId={sellerId}
+        language={language}
         onBack={() => setSellerView("home")}
       />
     );

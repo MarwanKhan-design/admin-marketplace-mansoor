@@ -1,420 +1,75 @@
-import React, { useEffect, useMemo, useState } from "react";
-import "./SellerWithdraw.css";
+import React, { useEffect, useState } from 'react';
+import './SellerWithdraw.css';
+import { sellerSupabase } from '../shared/supabase';
 
-const METHOD_TYPE = {
-  "Bank Card": "bank_card",
-  "E-Wallet": "e_wallet",
-  Crypto: "digital_currency",
-};
-
-const CRYPTO_NETWORKS = [
-  { key: "trc20", label: "USDT (TRC20)" },
-  { key: "erc20", label: "USDT (ERC20)" },
-  { key: "bep20", label: "USDT (BEP20)" },
+const initialRecords = [
+  { id: '77942504...', amount: 155, method: 'Bank Card', account: '0981627272838383', date: 'Aug 4, 2026, 12:39 AM', updated: 'Aug 4, 2026, 12:40 AM', status: 'Approved' },
+  { id: 'CABD9B3B...', amount: 500, method: 'Bank Card', account: 'Ubl', date: 'Aug 3, 2026, 12:49 AM', updated: 'Aug 3, 2026, 12:51 AM', status: 'Rejected', reason: 'Due to incorrect bank information withdrawal rejected' },
+  { id: '59321EEE...', amount: 100, method: 'Bank Card', account: 'Gsm', date: 'Jul 29, 2026, 01:26 AM', updated: 'Aug 3, 2026, 12:47 AM', status: 'Approved' },
+  { id: '190CD5F1...', amount: 166, method: 'Bank Card', account: '09281771282839292', date: 'Jul 28, 2026, 12:35 AM', updated: 'Jul 28, 2026, 12:37 AM', status: 'Approved' },
 ];
 
-export default function SellerWithdraw({
-  client,
-  sellerId,
-  onBack,
-  recordsOnly = false,
-  onNewWithdrawal,
-  onBindMethod,
-  availableBalance = 0,
-}) {
-  const [method, setMethod] = useState("");
-  const [network, setNetwork] = useState("");
-  const [amount, setAmount] = useState("");
-  const [tradePassword, setTradePassword] = useState("");
-  const [records, setRecords] = useState([]);
-  const [notice, setNotice] = useState("");
-  const [formError, setFormError] = useState("");
+const loadSavedRecords = () => {
+  try {
+    return JSON.parse(localStorage.getItem('seller_withdrawal_requests')) || [];
+  } catch {
+    return [];
+  }
+};
+
+export default function SellerWithdraw({ onBack, recordsOnly = false, onNewWithdrawal }) {
+  const [method, setMethod] = useState('');
+  const [account, setAccount] = useState('');
+  const [amount, setAmount] = useState('');
+  const [tradePassword, setTradePassword] = useState('');
+  const [records, setRecords] = useState(() => [...loadSavedRecords(), ...initialRecords]);
+  const [notice, setNotice] = useState('');
   const [methodPickerOpen, setMethodPickerOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [loading, setLoading] = useState(true);
-  const [paymentMethods, setPaymentMethods] = useState({});
-
-  const visibleRecords =
-    statusFilter === "All"
-      ? records
-      : records.filter((record) => record.status === statusFilter);
-
+  const [statusFilter, setStatusFilter] = useState('All');
+  const visibleRecords = statusFilter === 'All' ? records : records.filter((record) => record.status === statusFilter);
   const loadCloudRecords = async () => {
-    if (!client || !sellerId) return;
-    setLoading(true);
-    const { data } = await client
-      .from("withdrawals")
-      .select("*")
-      .eq("seller_id", sellerId)
-      .order("created_at", { ascending: false });
-    setRecords(
-      (data || []).map((item) => ({
-        id: item.id.toString().slice(0, 8).toUpperCase() + "...",
-        dbId: item.id,
-        amount: Number(item.amount),
-        method: item.method,
-        account: item.account_details,
-        date: new Date(item.created_at).toLocaleString(),
-        updated: item.updated_at
-          ? new Date(item.updated_at).toLocaleString()
-          : new Date(item.created_at).toLocaleString(),
-        status: item.status,
-        reason: item.rejection_reason,
-      })),
-    );
-    setLoading(false);
+    const { data } = await sellerSupabase.from('withdrawals').select('*').order('created_at',{ascending:false});
+    if(data?.length) setRecords(data.map((item)=>({id:item.id.slice(0,8).toUpperCase()+'...',dbId:item.id,amount:Number(item.amount),method:item.method,account:item.account_details,date:new Date(item.created_at).toLocaleString(),updated:new Date(item.updated_at).toLocaleString(),status:item.status,reason:item.rejection_reason})));
   };
-
-  const loadPaymentMethods = async () => {
-    if (!client || !sellerId) return;
-    const { data, error } = await client
-      .from("payment_methods")
-      .select("method_type,details")
-      .eq("seller_id", sellerId);
-    if (error) {
-      console.log("PAYMENT METHODS LOAD ERROR:", error);
-      return;
-    }
-    const map = {};
-    (data || []).forEach((row) => {
-      map[row.method_type] = row.details || {};
-    });
-    setPaymentMethods(map);
-  };
-
-  useEffect(() => {
-    loadCloudRecords();
-    loadPaymentMethods();
-    if (!client) return;
-    const channel = client
-      .channel("seller-withdrawals")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "withdrawals" },
-        loadCloudRecords,
-      )
-      .subscribe();
-    return () => client.removeChannel(channel);
-  }, [client, sellerId]);
-
-  const boundDetails = method ? paymentMethods[METHOD_TYPE[method]] : null;
-  const availableNetworks = useMemo(() => {
-    if (method !== "Crypto" || !boundDetails) return [];
-    return CRYPTO_NETWORKS.filter((item) => boundDetails[item.key]);
-  }, [method, boundDetails]);
+  useEffect(() => { loadCloudRecords(); }, []);
 
   const selectMethod = (selectedMethod) => {
-    const bound = paymentMethods[METHOD_TYPE[selectedMethod]];
-    if (!bound) {
-      setMethodPickerOpen(false);
-      const view =
-        selectedMethod === "Bank Card"
-          ? "bank-card"
-          : selectedMethod === "E-Wallet"
-            ? "e-wallet"
-            : "digital-currency";
-      onBindMethod?.(view);
-      return;
-    }
     setMethod(selectedMethod);
-    if (selectedMethod === "Crypto") {
-      const firstNetwork = CRYPTO_NETWORKS.find((item) => bound[item.key]);
-      setNetwork(firstNetwork?.key || "");
-    } else {
-      setNetwork("");
-    }
+    setAccount('');
     setMethodPickerOpen(false);
-  };
-
-  const accountSummary = () => {
-    if (!method || !boundDetails) return "";
-    if (method === "Bank Card")
-      return `${boundDetails.name} · ${boundDetails.bankName} · ${boundDetails.cardNumber}`;
-    if (method === "E-Wallet")
-      return `${boundDetails.walletName} · ${boundDetails.walletNumber} (${boundDetails.walletEmail})`;
-    if (method === "Crypto" && network)
-      return `${CRYPTO_NETWORKS.find((item) => item.key === network)?.label} · ${boundDetails[network]}`;
-    return "";
   };
 
   const submit = async (event) => {
     event.preventDefault();
-    if (!client || !sellerId) return;
-    setFormError("");
-    if (!method || !boundDetails) {
-      setFormError("Select a bound withdrawal method first.");
-      return;
-    }
-    if (method === "Crypto" && !network) {
-      setFormError("Select a network for your crypto withdrawal.");
-      return;
-    }
-    const requested = Number(amount);
-    if (!requested || requested <= 0) {
-      setFormError("Enter a valid withdrawal amount.");
-      return;
-    }
-    if (availableBalance <= 0) {
-      setFormError("You have no available balance to withdraw.");
-      return;
-    }
-    if (requested > availableBalance) {
-      setFormError(
-        `You can withdraw up to $${availableBalance.toFixed(2)}. That exceeds your available balance.`,
-      );
-      return;
-    }
-    const { error } = await client.from("withdrawals").insert({
-      seller_id: sellerId,
-      amount: requested,
-      method,
-      account_details: accountSummary(),
-      status: "Pending",
-    });
-    if (error) {
-      console.log("WITHDRAW SUBMIT ERROR:", error);
-      setFormError(
-        error.message || "Something went wrong submitting your withdrawal.",
-      );
-      return;
-    }
-    setAmount("");
-    setTradePassword("");
-    setNotice("Withdrawal request submitted for review.");
-    window.setTimeout(() => setNotice(""), 2200);
+    const { data: auth } = await sellerSupabase.auth.getUser();
+    const { data } = await sellerSupabase.from('withdrawals').insert({seller_id:auth.user.id,amount:Number(amount),method,account_details:account,status:'Pending'}).select().single();
+    const record = { id: data ? data.id.slice(0,8).toUpperCase()+'...' : `${Date.now().toString(16).toUpperCase().slice(-8)}...`, dbId:data?.id,amount: Number(amount), method, account, date: new Date(data?.created_at||Date.now()).toLocaleString(), status: 'Pending' };
+    setRecords((current) => [record, ...current]);
+    try { const current = JSON.parse(localStorage.getItem('seller_withdrawal_requests')) || []; localStorage.setItem('seller_withdrawal_requests', JSON.stringify([record, ...current])); } catch { /* unavailable */ }
+    setAmount(''); setTradePassword(''); setNotice('Withdrawal request submitted for review.');
+    window.setTimeout(() => setNotice(''), 2200);
   };
 
-  return (
-    <main className="seller-withdraw-page">
-      <div className="seller-withdraw-shell">
-        <header>
-          <button type="button" onClick={onBack}>
-            ‹
-          </button>
-          <h1>{recordsOnly ? "Withdrawal Records" : "Withdraw"}</h1>
-          {recordsOnly ? (
-            <button
-              className="withdraw-header-refresh"
-              type="button"
-              onClick={loadCloudRecords}
-            >
-              Refresh
-            </button>
-          ) : (
-            <span />
-          )}
-        </header>
-        {!recordsOnly && (
-          <>
-            {notice && <div className="withdraw-success-notice">{notice}</div>}
-            {formError && (
-              <div className="withdraw-error-notice">{formError}</div>
-            )}
-            <div className="withdraw-info">
-              Available to withdraw: ${availableBalance.toFixed(2)}
-            </div>
-            <div className="withdraw-info">
-              Withdrawal requests are reviewed by our team and processed within
-              1–3 business days. Your balance will be held until the request is
-              approved.
-            </div>
-            <form className="withdraw-form" onSubmit={submit}>
-              <label>
-                Withdraw Method
-                <button
-                  className={`withdraw-method-trigger${method ? " selected" : ""}`}
-                  type="button"
-                  onClick={() => setMethodPickerOpen(true)}
-                >
-                  <span>{method || "Select withdraw method"}</span>
-                  <span>›</span>
-                </button>
-              </label>
-              {method && boundDetails && (
-                <label>
-                  Account Details
-                  <div className="withdraw-bound-details">
-                    {method === "Crypto" && availableNetworks.length > 1 && (
-                      <select
-                        value={network}
-                        onChange={(event) => setNetwork(event.target.value)}
-                      >
-                        {availableNetworks.map((item) => (
-                          <option key={item.key} value={item.key}>
-                            {item.label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <span>{accountSummary()}</span>
-                  </div>
-                </label>
-              )}
-              {method && !boundDetails && (
-                <div className="withdraw-error-notice">
-                  No {method} on file. Please bind one first.
-                </div>
-              )}
-              <label>
-                Amount $
-                <input
-                  required
-                  min="1"
-                  step="0.01"
-                  type="number"
-                  placeholder="Enter withdraw amount"
-                  value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
-                />
-              </label>
-              <label>
-                Trade Password
-                <input
-                  required
-                  type="password"
-                  placeholder="Enter trade password"
-                  value={tradePassword}
-                  onChange={(event) => setTradePassword(event.target.value)}
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={availableBalance <= 0 || !boundDetails}
-              >
-                Withdraw
-              </button>
-            </form>
-          </>
-        )}
-        {recordsOnly && (
-          <nav className="withdraw-record-filters">
-            {["All", "Pending", "Approved", "Rejected"].map((filter) => (
-              <button
-                className={statusFilter === filter ? "active" : ""}
-                type="button"
-                key={filter}
-                onClick={() => setStatusFilter(filter)}
-              >
-                {filter}
-              </button>
-            ))}
-          </nav>
-        )}
-        <section
-          className={`withdraw-records${recordsOnly ? " records-only" : ""}`}
-        >
-          {!recordsOnly && (
-            <div>
-              <h2>Withdrawal Records</h2>
-              <button type="button" onClick={loadCloudRecords}>
-                Refresh
-              </button>
-            </div>
-          )}
-          {visibleRecords.length ? (
-            visibleRecords.map((record) => (
-              <article key={record.dbId}>
-                <span
-                  className={`seller-withdraw-status ${record.status.toLowerCase()}`}
-                >
-                  {record.status === "Approved"
-                    ? "✓"
-                    : record.status === "Rejected"
-                      ? "⊗"
-                      : "◷"}{" "}
-                  {record.status}
-                </span>
-                <div className="withdraw-record-grid">
-                  <dl>
-                    <dt>WITHDRAWAL ID</dt>
-                    <dd>{record.id}</dd>
-                    <dt>AMOUNT</dt>
-                    <dd>${record.amount.toFixed(2)}</dd>
-                    <dt>ACCOUNT / WALLET</dt>
-                    <dd>{record.account}</dd>
-                    <dt>REQUESTED ON</dt>
-                    <dd>{record.date}</dd>
-                    {recordsOnly && (
-                      <>
-                        <dt>LAST UPDATED</dt>
-                        <dd>{record.updated || record.date}</dd>
-                      </>
-                    )}
-                  </dl>
-                  <dl>
-                    <dt>METHOD</dt>
-                    <dd>{record.method}</dd>
-                  </dl>
-                </div>
-                {record.reason && (
-                  <div className="withdraw-rejection">
-                    <strong>REJECTION REASON</strong>
-                    <p>{record.reason}</p>
-                  </div>
-                )}
-              </article>
-            ))
-          ) : (
-            <div className="withdraw-empty">
-              <b>!</b>
-              <strong>No withdrawal records</strong>
-              <span>
-                {loading
-                  ? "Loading..."
-                  : `No ${statusFilter.toLowerCase()} withdrawals found.`}
-              </span>
-              <button type="button" onClick={onNewWithdrawal}>
-                Make a Withdrawal
-              </button>
-            </div>
-          )}
-        </section>
-        {recordsOnly && (
-          <div className="withdraw-new-action">
-            <button type="button" onClick={onNewWithdrawal}>
-              Submit New Withdrawal
-            </button>
-          </div>
-        )}
-        {!recordsOnly && methodPickerOpen && (
-          <div
-            className="withdraw-method-overlay"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget)
-                setMethodPickerOpen(false);
-            }}
-          >
-            <section
-              className="withdraw-method-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Choose withdrawal method"
-            >
-              <p>Select a bound payment method</p>
-              {["Bank Card", "E-Wallet", "Crypto"].map((option) => (
-                <button
-                  type="button"
-                  key={option}
-                  onClick={() => selectMethod(option)}
-                >
-                  <span>
-                    {option}
-                    {!paymentMethods[METHOD_TYPE[option]] && " — not bound"}
-                  </span>
-                  <span>›</span>
-                </button>
-              ))}
-              <button
-                className="withdraw-method-cancel"
-                type="button"
-                onClick={() => setMethodPickerOpen(false)}
-              >
-                Cancel
-              </button>
-            </section>
-          </div>
-        )}
-      </div>
-    </main>
-  );
+  return <main className="seller-withdraw-page"><div className="seller-withdraw-shell">
+    <header><button type="button" onClick={onBack}>‹</button><h1>{recordsOnly ? 'Withdrawal Records' : 'Withdraw'}</h1>{recordsOnly ? <button className="withdraw-header-refresh" type="button" onClick={loadCloudRecords}>Refresh</button> : <span />}</header>
+    {!recordsOnly && <>{notice && <div className="withdraw-success-notice">{notice}</div>}
+    <div className="withdraw-info">Withdrawal requests are reviewed by our team and processed within 1–3 business days. Your balance will be held until the request is approved.</div>
+    <form className="withdraw-form" onSubmit={submit}>
+      <label>Withdraw Method<button className={`withdraw-method-trigger${method ? ' selected' : ''}`} type="button" onClick={() => setMethodPickerOpen(true)}><span>{method || 'Select withdraw method'}</span><span>›</span></button></label>
+      <label>Account Details<input required placeholder={method === 'Bank Card' ? 'Bank account number / name' : method === 'E-Wallet' ? 'E-wallet account number / name' : method === 'Crypto' ? 'Wallet address / network' : 'Enter account details'} value={account} onChange={(event) => setAccount(event.target.value)} /></label>
+      <label>Amount $<input required min="1" max="4752.92" step="0.01" type="number" placeholder="Enter withdraw amount" value={amount} onChange={(event) => setAmount(event.target.value)} /></label>
+      <label>Trade Password<input required type="password" placeholder="Enter trade password" value={tradePassword} onChange={(event) => setTradePassword(event.target.value)} /></label>
+      <button type="submit">Withdraw</button>
+    </form></>}
+    {recordsOnly && <nav className="withdraw-record-filters">{['All', 'Pending', 'Approved', 'Completed', 'Rejected'].map((filter) => <button className={statusFilter === filter ? 'active' : ''} type="button" key={filter} onClick={() => setStatusFilter(filter)}>{filter}</button>)}</nav>}
+    <section className={`withdraw-records${recordsOnly ? ' records-only' : ''}`}>{!recordsOnly && <div><h2>Withdrawal Records</h2><button type="button" onClick={() => setRecords([...loadSavedRecords(), ...initialRecords])}>Refresh</button></div>}{visibleRecords.length ? visibleRecords.map((record) => <article key={record.id + record.date}><span className={`seller-withdraw-status ${record.status.toLowerCase()}`}>{record.status === 'Approved' ? '✓' : record.status === 'Rejected' ? '⊗' : '◷'} {record.status}</span><div className="withdraw-record-grid"><dl><dt>WITHDRAWAL ID</dt><dd>{record.id}</dd><dt>AMOUNT</dt><dd>${record.amount.toFixed(2)}</dd><dt>ACCOUNT / WALLET</dt><dd>{record.account}</dd><dt>REQUESTED ON</dt><dd>{record.date}</dd>{recordsOnly && <><dt>LAST UPDATED</dt><dd>{record.updated || record.date}</dd></>}</dl><dl><dt>METHOD</dt><dd>{record.method}</dd></dl></div>{record.reason && <div className="withdraw-rejection"><strong>REJECTION REASON</strong><p>{record.reason}</p></div>}</article>) : <div className="withdraw-empty"><b>!</b><strong>No withdrawal records</strong><span>No {statusFilter.toLowerCase()} withdrawals found.</span><button type="button" onClick={onNewWithdrawal}>Make a Withdrawal</button></div>}</section>
+    {recordsOnly && <div className="withdraw-new-action"><button type="button" onClick={onNewWithdrawal}>Submit New Withdrawal</button></div>}
+    {!recordsOnly && methodPickerOpen && <div className="withdraw-method-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setMethodPickerOpen(false); }}>
+      <section className="withdraw-method-modal" role="dialog" aria-modal="true" aria-label="Choose withdrawal method">
+        <p>Please bind a payment method first</p>
+        {['Bank Card', 'E-Wallet', 'Crypto'].map((option) => <button type="button" key={option} onClick={() => selectMethod(option)}><span>{option}</span><span>›</span></button>)}
+        <button className="withdraw-method-cancel" type="button" onClick={() => setMethodPickerOpen(false)}>Cancel</button>
+      </section>
+    </div>}
+  </div></main>;
 }

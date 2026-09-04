@@ -199,66 +199,6 @@
   font-size: 30px;
 }
 
-.sub-agent-list {
-  margin-top: 14px;
-
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 8px;
-}
-
-.sub-agent-row {
-  display: flex;
-
-  justify-content: space-between;
-
-  align-items: center;
-
-  gap: 12px;
-
-  padding: 12px 14px;
-
-  background: #f8f9fb;
-
-  border-radius: 10px;
-}
-
-.sub-agent-row div {
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 2px;
-
-  min-width: 0;
-}
-
-.sub-agent-row strong {
-  color: #0f172a;
-
-  font-size: 13px;
-}
-
-.sub-agent-row span {
-  color: #94a3b8;
-
-  font-size: 12px;
-}
-
-.sub-agent-row em {
-  color: #2563eb;
-
-  font-size: 12px;
-
-  font-style: normal;
-
-  font-weight: 600;
-
-  white-space: nowrap;
-}
-
 
 /* =========================================================
    SELLER STATISTICS

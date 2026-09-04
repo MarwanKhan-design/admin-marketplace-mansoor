@@ -1,324 +1,69 @@
-import React, { useEffect, useMemo, useState } from "react";
-import "./SellerMessages.css";
-import { translations } from "./translations";
+import React, { useEffect, useState } from 'react';
+import './SellerMessages.css';
+import { sellerSupabase } from '../shared/supabase';
 
-const tabKeys = [
-  "tabAnnouncements",
-  "tabOrderNotices",
-  "tabBuyerMessages",
-  "tabPlatformMsgs",
+const tabs = ['Announcements', 'Order Notices', 'Buyer Messages', 'Platform Msgs'];
+const defaultAnnouncements = [{ id: 1, title: 'orders', message: 'hey', date: '2026-08-08 16:05' }];
+const defaultNotices = [
+  { id: 1, title: 'Order Shipped', message: 'Order TT5270613903704 (DUMMY PHONE) has been shipped.', order: 'TT5270613903704', date: '2026-08-10 02:01' },
+  { id: 2, title: 'Order Paid', message: 'Order TT5270613903704 has been paid and is awaiting shipment.', order: 'TT5270613903704', date: '2026-08-10 01:53' },
+  { id: 3, title: 'Delivery Confirmed', message: 'Order TT6133610796740 delivery has been confirmed and is pending completion.', order: 'TT6133610796740', date: '2026-08-10 01:53' },
+  { id: 4, title: 'Payment Successful', message: '$160.08 was deducted from your wallet for order TT6133610796740. Please ship the order now.', order: 'TT6133610796740', date: '2026-08-10 01:32' },
+  { id: 5, title: 'Order Completed', message: 'Order TT5441436862422 (DATA CABLE LEAD) has been marked as completed.', order: 'TT5441436862422', date: '2026-08-08 01:16' },
 ];
+const buyers = [
+  { id: 1, product: 'CR149127', sku: 'P1786124390743', price: '$172.79', buyer: 'khan', message: 'Is this available?', date: 'Aug 8, 01:17 AM', replies: [] },
+  { id: 2, product: 'locker', sku: 'P1785085881435', price: '$8.00', buyer: 'ali', message: 'Is this available?', date: 'Aug 4, 12:37 AM', replies: ['Hello'] },
+];
+const defaultPlatformMessages = [{ id: 1, sender: 'khan', message: 'Hey', date: 'Jul 27, 12:16 AM' }, { id: 2, sender: 'khan', message: 'Hello you there?', date: 'Aug 10, 01:58 AM' }];
 
-export default function SellerMessages({ client, sellerId, language = "en", onBack }) {
-  const t = translations[language] || translations.en;
-  const [activeTab, setActiveTab] = useState("Announcements");
-  const [announcements, setAnnouncements] = useState([]);
-  const [notices, setNotices] = useState([]);
-  const [buyerMessages, setBuyerMessages] = useState([]);
-  const [platformMessages, setPlatformMessages] = useState([]);
-  const [openThread, setOpenThread] = useState(null);
-  const [reply, setReply] = useState("");
-  const [loading, setLoading] = useState(true);
+const readStorage = (key, fallback) => {
+  try { const value = JSON.parse(localStorage.getItem(key)); return Array.isArray(value) && value.length ? value : fallback; }
+  catch { return fallback; }
+};
+
+export default function SellerMessages({ onBack }) {
+  const [activeTab, setActiveTab] = useState('Announcements');
+  const [announcements, setAnnouncements] = useState(() => readStorage('marketplace_announcements', defaultAnnouncements));
+  const [notices] = useState(() => [...readStorage('seller_order_notices', []), ...defaultNotices]);
+  const [buyerThreads, setBuyerThreads] = useState(buyers);
+  const [replyTarget, setReplyTarget] = useState(null);
+  const [reply, setReply] = useState('');
+  const [platformMessages, setPlatformMessages] = useState(defaultPlatformMessages);
+  const [currentUserId, setCurrentUserId] = useState('');
 
   useEffect(() => {
-    if (!client || !sellerId) return;
     const load = async () => {
-      setLoading(true);
-      const [announcementsRes, messagesRes, ordersRes] = await Promise.all([
-        client
-          .from("announcements")
-          .select("*")
-          .order("created_at", { ascending: false }),
-        client
-          .from("messages")
-          .select(
-            "*,sender:profiles!messages_sender_id_profiles_fkey(display_name,email),recipient:profiles!messages_recipient_id_profiles_fkey(display_name,email),product:products(id,name,product_code,sell_price,image_url)",
-          )
-          .in("channel", ["platform", "buyer", "agent"])
-          .or(`sender_id.eq.${sellerId},recipient_id.eq.${sellerId}`)
-          .order("created_at", { ascending: true }),
-        client
-          .from("orders")
-          .select("id,order_no,product_name,status,updated_at")
-          .eq("seller_id", sellerId)
-          .order("updated_at", { ascending: false })
-          .limit(20),
-      ]);
-
-      setAnnouncements(
-        (announcementsRes.data || []).map((item) => ({
-          id: item.id,
-          title: item.title,
-          message: item.message,
-          date: new Date(item.created_at).toLocaleString(),
-        })),
-      );
-
-      setNotices(
-        (ordersRes.data || []).map((item) => ({
-          id: item.id,
-          title: `Order ${item.status || "Updated"}`,
-          message: `${item.order_no || item.id} — ${item.product_name || "Order"}`,
-          order: item.order_no || item.id,
-          date: new Date(item.updated_at).toLocaleString(),
-        })),
-      );
-
-      const rows = messagesRes.data || [];
-      setBuyerMessages(rows.filter((item) => item.channel === "buyer"));
-      setPlatformMessages(rows.filter((item) => item.channel === "platform" || item.channel === "agent"));
-
-      setLoading(false);
+      const { data: auth } = await sellerSupabase.auth.getUser();
+      setCurrentUserId(auth?.user?.id || '');
+      sellerSupabase.from('announcements').select('*').order('created_at',{ascending:false}).then(({data}) => {
+      if (data?.length) setAnnouncements(data.map((item) => ({id:item.id,title:item.title,message:item.message,date:new Date(item.created_at).toLocaleString()})));
+      });
+      const { data: rows } = await sellerSupabase.from('messages').select('*,sender:profiles!messages_sender_id_fkey(display_name,email)').in('channel',['platform','buyer']).order('created_at',{ascending:false});
+      const platform = (rows || []).filter((item)=>item.channel === 'platform');
+      if(platform.length)setPlatformMessages(platform.map((item)=>({id:item.id,userId:item.sender_id,sender:item.sender?.display_name||'Platform Support',message:item.body,date:new Date(item.created_at).toLocaleString()})));
+      const buyerRows = (rows || []).filter((item)=>item.channel === 'buyer');
+      if (buyerRows.length) setBuyerThreads(buyerRows.map((item)=>({id:item.id,userId:item.sender_id,product:'Product enquiry',sku:'Shared marketplace',price:'',buyer:item.sender?.display_name||item.sender?.email||'Buyer',message:item.body,date:new Date(item.created_at).toLocaleString(),replies:[]})));
     };
     load();
-    const channel = client
-      .channel("seller-message-center")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "announcements" },
-        load,
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "messages" },
-        load,
-      )
-      .subscribe();
-    return () => client.removeChannel(channel);
-  }, [client, sellerId]);
-
-  // Group a flat list of messages into one thread per conversation partner
-  const groupIntoThreads = (rows) => {
-    const byPartner = new Map();
-    rows.forEach((item) => {
-      const partnerId =
-        item.sender_id === sellerId ? item.recipient_id : item.sender_id;
-      const partnerProfile =
-        item.sender_id === sellerId ? item.recipient : item.sender;
-      const partnerName =
-        partnerProfile?.display_name || partnerProfile?.email || "User";
-      if (!byPartner.has(partnerId)) {
-        byPartner.set(partnerId, { partnerId, partnerName, messages: [], channel: item.channel });
-      }
-      byPartner.get(partnerId).messages.push({
-        id: item.id,
-        mine: item.sender_id === sellerId,
-        text: item.body,
-        product: item.product,
-        date: new Date(item.created_at).toLocaleString(),
-        createdAt: item.created_at,
-      });
-    });
-    return Array.from(byPartner.values())
-      .map((thread) => ({
-        ...thread,
-        lastMessage: thread.messages[thread.messages.length - 1],
-      }))
-      .sort(
-        (a, b) =>
-          new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt),
-      );
-  };
-
-  const buyerThreads = useMemo(
-    () => groupIntoThreads(buyerMessages),
-    [buyerMessages, sellerId],
-  );
-  const platformThreads = useMemo(
-    () => groupIntoThreads(platformMessages),
-    [platformMessages, sellerId],
-  );
-
-  const activeThread = useMemo(() => {
-    if (!openThread) return null;
-    const list = openThread.type === "buyer" ? buyerThreads : platformThreads;
-    return (
-      list.find((thread) => thread.partnerId === openThread.partnerId) || null
-    );
-  }, [openThread, buyerThreads, platformThreads]);
+    const channel = sellerSupabase.channel('seller-message-center').on('postgres_changes',{event:'*',schema:'public',table:'announcements'},load).on('postgres_changes',{event:'*',schema:'public',table:'messages'},load).subscribe();
+    return () => sellerSupabase.removeChannel(channel);
+  }, []);
 
   const sendReply = async (event) => {
     event.preventDefault();
-    if (!openThread?.partnerId || !sellerId || !client || !reply.trim()) return;
-    const { error } = await client.from("messages").insert({
-      sender_id: sellerId,
-      recipient_id: openThread.partnerId,
-      channel: activeThread?.channel || openThread.type,
-      body: reply.trim(),
-    });
-    if (error) {
-      console.log("SEND REPLY ERROR:", error);
-      return;
-    }
-    setReply("");
+    if (replyTarget.userId && currentUserId) await sellerSupabase.from('messages').insert({ sender_id:currentUserId, recipient_id:replyTarget.userId, channel:replyTarget.type === 'buyer' ? 'buyer' : 'platform', body:reply.trim() });
+    if (replyTarget.type === 'buyer') setBuyerThreads((current) => current.map((thread) => thread.id === replyTarget.id ? { ...thread, replies: [...thread.replies, reply] } : thread));
+    setReply(''); setReplyTarget(null);
   };
 
-  return (
-    <main className="seller-messages-page">
-      <div className="seller-messages-shell">
-        <header>
-          <button type="button" onClick={onBack}>
-            ‹
-          </button>
-          <h1>{t.messages}</h1>
-          <span />
-        </header>
-        <nav className="seller-message-tabs">
-          {tabKeys.map((key, index) => {
-            const labels = ["Announcements", "Order Notices", "Buyer Messages", "Platform Msgs"];
-            const label = labels[index];
-            return (
-              <button
-                type="button"
-                key={label}
-                className={activeTab === label ? "active" : ""}
-                onClick={() => setActiveTab(label)}
-              >
-                {t[key]}
-              </button>
-            );
-          })}
-        </nav>
-        {activeTab === "Announcements" && (
-          <section className="seller-announcement-list">
-            {announcements.map((item) => (
-              <article key={item.id}>
-                <div>
-                  <strong>{item.title}</strong>
-                  <p>{item.message}</p>
-                </div>
-                <time>{item.date}</time>
-              </article>
-            ))}
-            {!loading && !announcements.length && (
-              <div className="seller-messages-empty">{t.noAnnouncements}</div>
-            )}
-          </section>
-        )}
-        {activeTab === "Order Notices" && (
-          <section className="seller-notice-list">
-            {notices.map((item) => (
-              <article key={item.id}>
-                <div>
-                  <strong>{item.title}</strong>
-                  <p>{item.message}</p>
-                  <button type="button">{t.orderNo}: {item.order}</button>
-                </div>
-                <time>{item.date}</time>
-                <b>›</b>
-              </article>
-            ))}
-            {!loading && !notices.length && (
-              <div className="seller-messages-empty">{t.noOrderNotices}</div>
-            )}
-          </section>
-        )}
-        {activeTab === "Buyer Messages" && (
-          <section className="buyer-thread-list">
-            {buyerThreads.map((thread) => (
-              <article key={thread.partnerId}>
-                <div className="buyer-message">
-                  <span>♙</span>
-                  <div>
-                    <strong>{thread.partnerName}</strong>
-                    <p>{thread.lastMessage.text}</p>
-                    <time>{thread.lastMessage.date}</time>
-                  </div>
-                </div>
-                <button
-                  className="buyer-reply-btn"
-                  type="button"
-                  onClick={() =>
-                    setOpenThread({
-                      type: "buyer",
-                      partnerId: thread.partnerId,
-                    })
-                  }
-                >
-                  ▱ {t.viewThread}
-                </button>
-              </article>
-            ))}
-            {!loading && !buyerThreads.length && (
-              <div className="seller-messages-empty">
-                {t.noBuyerMessages}
-              </div>
-            )}
-          </section>
-        )}
-        {activeTab === "Platform Msgs" && (
-          <section className="platform-message-list">
-            {platformThreads.map((thread) => (
-              <article key={thread.partnerId}>
-                <div className="platform-avatar">TS</div>
-                <div>
-                  <strong>{thread.partnerName}</strong>
-                  <time>{thread.lastMessage.date}</time>
-                  <p>{thread.lastMessage.text}</p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setOpenThread({
-                        type: "platform",
-                        partnerId: thread.partnerId,
-                      })
-                    }
-                  >
-                    ▱ {t.viewThread}
-                  </button>
-                </div>
-              </article>
-            ))}
-            {!loading && !platformThreads.length && (
-              <div className="seller-messages-empty">
-                {t.noPlatformMessages}
-              </div>
-            )}
-          </section>
-        )}
-        {openThread && activeThread && (
-          <div
-            className="seller-reply-overlay"
-            onMouseDown={(event) =>
-              event.target === event.currentTarget && setOpenThread(null)
-            }
-          >
-            <form onSubmit={sendReply}>
-              <div>
-                <h2>{activeThread.partnerName}</h2>
-                <button type="button" onClick={() => setOpenThread(null)}>
-                  ×
-                </button>
-              </div>
-              <div className="seller-thread-scroll">
-                {activeThread.messages.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`seller-thread-bubble ${item.mine ? "mine" : "theirs"}`}
-                  >
-                    {item.product && (
-                      <span className="seller-thread-product-tag">
-                        {item.product.image_url && <img src={item.product.image_url} alt="" />}
-                        {item.product.name || item.product.product_code} · ${Number(item.product.sell_price || 0).toFixed(2)}
-                      </span>
-                    )}
-                    <p>{item.text}</p>
-                    <time>{item.date}</time>
-                  </div>
-                ))}
-              </div>
-              <textarea
-                autoFocus
-                required
-                placeholder={t.writeReply}
-                value={reply}
-                onChange={(event) => setReply(event.target.value)}
-              />
-              <button type="submit">{t.sendReply}</button>
-            </form>
-          </div>
-        )}
-      </div>
-    </main>
-  );
+  return <main className="seller-messages-page"><div className="seller-messages-shell">
+    <header><button type="button" onClick={onBack}>‹</button><h1>Messages</h1><span /></header>
+    <nav className="seller-message-tabs">{tabs.map((tab) => <button type="button" key={tab} className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>{tab}</button>)}</nav>
+    {activeTab === 'Announcements' && <section className="seller-announcement-list">{announcements.map((item) => <article key={item.id}><div><strong>{item.title}</strong><p>{item.message || item.content}</p></div><time>{item.date}</time></article>)}</section>}
+    {activeTab === 'Order Notices' && <section className="seller-notice-list">{notices.map((item, index) => <article key={`${item.id}-${index}`}><div><strong>{item.title}</strong><p>{item.message}</p><button type="button">Order No: {item.order}</button></div><time>{item.date}</time><b>›</b></article>)}</section>}
+    {activeTab === 'Buyer Messages' && <section className="buyer-thread-list">{buyerThreads.map((thread) => <article key={thread.id}><div className="buyer-product"><div className="buyer-product-image">{thread.product[0]}</div><div><strong>{thread.product}</strong><small>SKU: {thread.sku}</small><b>{thread.price}</b></div></div><div className="buyer-message"><span>♙</span><div><strong>{thread.buyer}</strong><p>{thread.message}</p><time>{thread.date}</time></div></div>{thread.replies.map((text, index) => <div className="seller-reply" key={index}><strong>You replied</strong><p>{text}</p></div>)}<button className="buyer-reply-btn" type="button" onClick={() => setReplyTarget({ type: 'buyer', id: thread.id, userId:thread.userId, name: thread.buyer })}>▱ {thread.replies.length ? 'View Chat' : 'Reply'}</button></article>)}</section>}
+    {activeTab === 'Platform Msgs' && <section className="platform-message-list">{platformMessages.map((item) => <article key={item.id}><div className="platform-avatar">TS</div><div><strong>{item.sender}</strong><time>{item.date}</time><p>{item.message}</p><button type="button" onClick={() => setReplyTarget({ type: 'platform', id: item.id, userId:item.userId, name: item.sender })}>▱ Reply</button></div></article>)}</section>}
+    {replyTarget && <div className="seller-reply-overlay" onMouseDown={(event) => event.target === event.currentTarget && setReplyTarget(null)}><form onSubmit={sendReply}><div><h2>Reply to {replyTarget.name}</h2><button type="button" onClick={() => setReplyTarget(null)}>×</button></div><textarea autoFocus required placeholder="Write your reply..." value={reply} onChange={(event) => setReply(event.target.value)} /><button type="submit">Send Reply</button></form></div>}
+  </div></main>;
 }

@@ -23,3 +23,10 @@
   .agent-general-card { padding: 20px 16px; }
   .agent-general-grid { grid-template-columns: 1fr; gap: 16px; }
 }
+.agent-avatar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.agent-avatar-preview, .agent-avatar-placeholder {
+  width: 56px; height: 56px; border-radius: 50%; object-fit: cover;
+  display: flex; align-items: center; justify-content: center;
+  background: #eee; font-weight: 600;
+}
+.agent-avatar-upload { cursor: pointer; font-size: 13px; color: #2563eb; }

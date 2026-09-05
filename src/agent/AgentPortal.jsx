@@ -15,6 +15,7 @@ import {
   rowSellerId,
   walletTotalsBySeller,
 } from "../shared/wallet";
+import { resizeImageToDataUrl } from "../shared/avatar";
 import "./AgentPortal.css";
 import "./AgentTeam.css";
 import "./AgentUnregistered.css";
@@ -36,26 +37,46 @@ import "./AgentAnnouncements.css";
 import "./AgentRechargeOrders.css";
 import "./AgentWithdrawOrders.css";
 import "./AgentSellerChat.css";
-import "./AgentSellerChatReply.css";
+// import "./AgentSellerChatReply.css";
 import "./AgentVirtualBuyers.css";
 import "./AgentBuyerMessages.css";
-import "./AgentBuyerProductFilters.css";
-import "./AgentVirtualBuyerBackend.css";
+// import "./AgentBuyerProductFilters.css";
+// import "./AgentVirtualBuyerBackend.css";
 import "./AgentFinalPages.css";
-import "../shared/BuyerImageEditor.css";
+// import "../shared/BuyerImageEditor.css";
 
 const buyerCountries = [
-  ["Afghanistan", "+93"], ["Australia", "+61"], ["Bangladesh", "+880"],
-  ["Brazil", "+55"], ["Canada", "+1"], ["China", "+86"],
-  ["France", "+33"], ["Germany", "+49"], ["India", "+91"],
-  ["Indonesia", "+62"], ["Italy", "+39"], ["Japan", "+81"],
-  ["Malaysia", "+60"], ["Mexico", "+52"], ["Netherlands", "+31"],
-  ["New Zealand", "+64"], ["Nigeria", "+234"], ["Pakistan", "+92"],
-  ["Philippines", "+63"], ["Saudi Arabia", "+966"], ["Singapore", "+65"],
-  ["South Africa", "+27"], ["South Korea", "+82"], ["Spain", "+34"],
-  ["Sri Lanka", "+94"], ["Thailand", "+66"], ["Turkey", "+90"],
-  ["United Arab Emirates", "+971"], ["United Kingdom", "+44"],
-  ["United States", "+1"], ["Vietnam", "+84"],
+  ["Afghanistan", "+93"],
+  ["Australia", "+61"],
+  ["Bangladesh", "+880"],
+  ["Brazil", "+55"],
+  ["Canada", "+1"],
+  ["China", "+86"],
+  ["France", "+33"],
+  ["Germany", "+49"],
+  ["India", "+91"],
+  ["Indonesia", "+62"],
+  ["Italy", "+39"],
+  ["Japan", "+81"],
+  ["Malaysia", "+60"],
+  ["Mexico", "+52"],
+  ["Netherlands", "+31"],
+  ["New Zealand", "+64"],
+  ["Nigeria", "+234"],
+  ["Pakistan", "+92"],
+  ["Philippines", "+63"],
+  ["Saudi Arabia", "+966"],
+  ["Singapore", "+65"],
+  ["South Africa", "+27"],
+  ["South Korea", "+82"],
+  ["Spain", "+34"],
+  ["Sri Lanka", "+94"],
+  ["Thailand", "+66"],
+  ["Turkey", "+90"],
+  ["United Arab Emirates", "+971"],
+  ["United Kingdom", "+44"],
+  ["United States", "+1"],
+  ["Vietnam", "+84"],
 ].map(([name, code]) => ({ name, code }));
 
 const callingCodeFor = (country) =>
@@ -156,8 +177,23 @@ const stats = [
 export default function AgentPortal({ onLogout }) {
   const [active, setActive] = useState("Dashboard");
   const [copied, setCopied] = useState("");
+  const [agentAvatar, setAgentAvatar] = useState("");
   const inviteCode = "P516326U";
   const inviteLink = `${window.location.origin}/seller/register?code=${inviteCode}`;
+
+  useEffect(() => {
+    let mounted = true;
+    const loadAvatar = async () => {
+      const { data } = await agentSupabase.auth.getUser();
+      if (mounted) setAgentAvatar(data?.user?.user_metadata?.avatar_url || "");
+    };
+    loadAvatar();
+    window.addEventListener("agent-avatar-changed", loadAvatar);
+    return () => {
+      mounted = false;
+      window.removeEventListener("agent-avatar-changed", loadAvatar);
+    };
+  }, []);
 
   const copy = async (text, label) => {
     await navigator.clipboard?.writeText(text);
@@ -213,7 +249,11 @@ export default function AgentPortal({ onLogout }) {
         <header className="agent-topbar">
           <span>Agent Control Panel</span>
           <div>
-            <b>K</b>
+            {agentAvatar ? (
+              <img className="agent-topbar-avatar" src={agentAvatar} alt="" />
+            ) : (
+              <b>K</b>
+            )}
             <span>khan</span>
           </div>
         </header>
@@ -935,7 +975,9 @@ function AgentWithdrawOrders() {
   const load = async () => {
     const { data } = await agentSupabase
       .from("withdrawals")
-      .select("*,seller:profiles!withdrawals_seller_id_profiles_fkey(display_name,email)")
+      .select(
+        "*,seller:profiles!withdrawals_seller_id_profiles_fkey(display_name,email)",
+      )
       .order("created_at", { ascending: false });
     setWithdrawals(
       (data || []).map((row) => ({
@@ -956,7 +998,11 @@ function AgentWithdrawOrders() {
     load();
     const channel = agentSupabase
       .channel("agent-live-withdrawals")
-      .on("postgres_changes", { event: "*", schema: "public", table: "withdrawals" }, load)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "withdrawals" },
+        load,
+      )
       .subscribe();
     return () => agentSupabase.removeChannel(channel);
   }, []);
@@ -983,7 +1029,11 @@ function AgentWithdrawOrders() {
     setBusy(true);
     await agentSupabase
       .from("withdrawals")
-      .update({ status: "Rejected", rejection_reason: reason, updated_at: new Date().toISOString() })
+      .update({
+        status: "Rejected",
+        rejection_reason: reason,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", rejecting.id);
     setBusy(false);
     setRejecting(null);
@@ -991,18 +1041,31 @@ function AgentWithdrawOrders() {
     await load();
   };
 
-  const visible = filter === "All" ? withdrawals : withdrawals.filter((item) => item.status === filter);
-  const pendingTotal = withdrawals.filter((item) => item.status === "Pending").reduce((sum, item) => sum + item.amount, 0);
+  const visible =
+    filter === "All"
+      ? withdrawals
+      : withdrawals.filter((item) => item.status === filter);
+  const pendingTotal = withdrawals
+    .filter((item) => item.status === "Pending")
+    .reduce((sum, item) => sum + item.amount, 0);
 
   return (
     <div className="agent-withdraw-orders-page">
       <header>
         <h2>Finance — Withdrawals</h2>
-        <p>Withdrawal requests from your sellers. Pending total: ${pendingTotal.toFixed(2)}</p>
+        <p>
+          Withdrawal requests from your sellers. Pending total: $
+          {pendingTotal.toFixed(2)}
+        </p>
       </header>
       <nav>
         {["All", "Pending", "Approved", "Rejected"].map((item) => (
-          <button type="button" key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>
+          <button
+            type="button"
+            key={item}
+            className={filter === item ? "active" : ""}
+            onClick={() => setFilter(item)}
+          >
             {item}
           </button>
         ))}
@@ -1034,10 +1097,18 @@ function AgentWithdrawOrders() {
             <time>{item.requested}</time>
             {item.status === "Pending" ? (
               <span>
-                <button type="button" disabled={busy} onClick={() => approve(item)}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => approve(item)}
+                >
                   ✓ Approve
                 </button>
-                <button type="button" disabled={busy} onClick={() => setRejecting(item)}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setRejecting(item)}
+                >
                   × Reject
                 </button>
               </span>
@@ -1046,15 +1117,29 @@ function AgentWithdrawOrders() {
             )}
           </article>
         ))}
-        {!visible.length && <div className="agent-withdraw-empty">No {filter.toLowerCase()} withdrawal requests.</div>}
+        {!visible.length && (
+          <div className="agent-withdraw-empty">
+            No {filter.toLowerCase()} withdrawal requests.
+          </div>
+        )}
       </section>
       {rejecting && (
-        <div className="agent-recharge-overlay" onMouseDown={(event) => event.target === event.currentTarget && setRejecting(null)}>
+        <div
+          className="agent-recharge-overlay"
+          onMouseDown={(event) =>
+            event.target === event.currentTarget && setRejecting(null)
+          }
+        >
           <form className="agent-recharge-modal" onSubmit={submitReject}>
             <h3>Reject Withdrawal</h3>
             <label>
               Reason
-              <textarea required value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why is this withdrawal being rejected?" />
+              <textarea
+                required
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder="Why is this withdrawal being rejected?"
+              />
             </label>
             <footer>
               <button type="button" onClick={() => setRejecting(null)}>
@@ -1087,7 +1172,12 @@ function AgentSellerChat() {
       .select("id,display_name,email")
       .eq("role", "seller")
       .order("display_name");
-    setSellers((data || []).map((item) => ({ id: item.id, name: item.display_name || item.email.split("@")[0] })));
+    setSellers(
+      (data || []).map((item) => ({
+        id: item.id,
+        name: item.display_name || item.email.split("@")[0],
+      })),
+    );
   };
 
   const loadHistory = async () => {
@@ -1104,12 +1194,19 @@ function AgentSellerChat() {
     setHistory(
       (data || []).map((item) => ({
         id: item.id,
-        sellerId: item.sender_id === auth.user.id ? item.recipient_id : item.sender_id,
+        sellerId:
+          item.sender_id === auth.user.id ? item.recipient_id : item.sender_id,
         mine: item.sender_id === auth.user.id,
         text: item.body,
         product: item.product,
         productId: item.product?.id || item.product_id || null,
-        date: new Date(item.created_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }),
+        date: new Date(item.created_at).toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        }),
       })),
     );
   };
@@ -1119,24 +1216,37 @@ function AgentSellerChat() {
     loadHistory();
     const channel = agentSupabase
       .channel("agent-seller-chat")
-      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, loadHistory)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "messages" },
+        loadHistory,
+      )
       .subscribe();
     return () => agentSupabase.removeChannel(channel);
   }, []);
 
   useEffect(() => {
-    if (!sellerId) { setSellerProducts([]); setProductId(""); return; }
+    if (!sellerId) {
+      setSellerProducts([]);
+      setProductId("");
+      return;
+    }
     agentSupabase
       .from("showcase_products")
       .select("on_shelf,products(id,name,product_code,sell_price,image_url)")
       .eq("seller_id", sellerId)
       .then(({ data }) => {
-        setSellerProducts((data || []).filter((row) => row.on_shelf && row.products).map((row) => row.products));
+        setSellerProducts(
+          (data || [])
+            .filter((row) => row.on_shelf && row.products)
+            .map((row) => row.products),
+        );
         setProductId("");
       });
   }, [sellerId]);
 
-  const sellerName = (id) => sellers.find((item) => item.id === id)?.name || "Seller";
+  const sellerName = (id) =>
+    sellers.find((item) => item.id === id)?.name || "Seller";
 
   const send = async (event) => {
     event.preventDefault();
@@ -1150,7 +1260,10 @@ function AgentSellerChat() {
       body: message.trim(),
       product_id: productId || null,
     });
-    if (error) { console.log("AGENT CHAT SEND ERROR:", error); return; }
+    if (error) {
+      console.log("AGENT CHAT SEND ERROR:", error);
+      return;
+    }
     setMessage("");
     setProductId("");
   };
@@ -1180,37 +1293,66 @@ function AgentSellerChat() {
       </header>
       <form className="agent-chat-new" onSubmit={send}>
         <small>NEW MESSAGE</small>
-        <select required value={sellerId} onChange={(event) => setSellerId(event.target.value)}>
+        <select
+          required
+          value={sellerId}
+          onChange={(event) => setSellerId(event.target.value)}
+        >
           <option value="">Select seller...</option>
-          {sellers.map((seller) => <option value={seller.id} key={seller.id}>{seller.name}</option>)}
+          {sellers.map((seller) => (
+            <option value={seller.id} key={seller.id}>
+              {seller.name}
+            </option>
+          ))}
         </select>
         {sellerId && (
-          <select value={productId} onChange={(event) => setProductId(event.target.value)}>
+          <select
+            value={productId}
+            onChange={(event) => setProductId(event.target.value)}
+          >
             <option value="">No specific product</option>
             {sellerProducts.map((product) => (
               <option key={product.id} value={product.id}>
-                {product.name || product.product_code} · ${Number(product.sell_price || 0).toFixed(2)}
+                {product.name || product.product_code} · $
+                {Number(product.sell_price || 0).toFixed(2)}
               </option>
             ))}
           </select>
         )}
-        {sellerId && !sellerProducts.length && <small>This seller has no on-shelf products.</small>}
-        <input placeholder="Write your message..." value={message} onChange={(event) => setMessage(event.target.value)} />
-        <button type="submit" disabled={!sellerId || !message.trim()}>➤ Send</button>
+        {sellerId && !sellerProducts.length && (
+          <small>This seller has no on-shelf products.</small>
+        )}
+        <input
+          placeholder="Write your message..."
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+        />
+        <button type="submit" disabled={!sellerId || !message.trim()}>
+          ➤ Send
+        </button>
       </form>
       <div className="agent-chat-history-title">
         <span>Message History</span>
-        <button type="button" onClick={loadHistory}>↻</button>
+        <button type="button" onClick={loadHistory}>
+          ↻
+        </button>
       </div>
       <section className="agent-chat-history">
         {history.map((item) => (
           <article key={item.id}>
             <div>
-              <strong>{item.mine ? `To: ${sellerName(item.sellerId)}` : `From: ${sellerName(item.sellerId)}`}</strong>
+              <strong>
+                {item.mine
+                  ? `To: ${sellerName(item.sellerId)}`
+                  : `From: ${sellerName(item.sellerId)}`}
+              </strong>
               {item.product && (
                 <span className="agent-chat-product-tag">
-                  {item.product.image_url && <img src={item.product.image_url} alt="" />}
-                  {item.product.name || item.product.product_code} · ${Number(item.product.sell_price || 0).toFixed(2)}
+                  {item.product.image_url && (
+                    <img src={item.product.image_url} alt="" />
+                  )}
+                  {item.product.name || item.product.product_code} · $
+                  {Number(item.product.sell_price || 0).toFixed(2)}
                 </span>
               )}
               <p>{item.text}</p>
@@ -1219,21 +1361,30 @@ function AgentSellerChat() {
               <time>{item.date}</time>
               <button
                 type="button"
-                onClick={() => setThread({
-                  sellerId: item.sellerId,
-                  productId: item.productId,
-                  product: item.product,
-                })}
+                onClick={() =>
+                  setThread({
+                    sellerId: item.sellerId,
+                    productId: item.productId,
+                    product: item.product,
+                  })
+                }
               >
                 ▢ View Thread
               </button>
             </aside>
           </article>
         ))}
-        {!history.length && <div className="agent-chat-empty">No message history yet.</div>}
+        {!history.length && (
+          <div className="agent-chat-empty">No message history yet.</div>
+        )}
       </section>
       {thread && (
-        <div className="agent-chat-thread-overlay" onMouseDown={(event) => event.target === event.currentTarget && setThread(null)}>
+        <div
+          className="agent-chat-thread-overlay"
+          onMouseDown={(event) =>
+            event.target === event.currentTarget && setThread(null)
+          }
+        >
           <section>
             <header>
               <div>
@@ -1244,37 +1395,49 @@ function AgentSellerChat() {
                     : "General conversation · No specific product"}
                 </p>
               </div>
-              <button type="button" onClick={() => setThread(null)}>×</button>
+              <button type="button" onClick={() => setThread(null)}>
+                ×
+              </button>
             </header>
             <div>
               {history
                 .filter(
                   (item) =>
                     item.sellerId === thread.sellerId &&
-                    String(item.productId || "general") === String(thread.productId || "general"),
+                    String(item.productId || "general") ===
+                      String(thread.productId || "general"),
                 )
                 .slice()
                 .reverse()
                 .map((item) => (
-                <article key={item.id} className={item.mine ? "mine" : "seller"}>
-                  {item.product && (
-                    <span className="agent-chat-product-tag">
-                      {item.product.name || item.product.product_code} · ${Number(item.product.sell_price || 0).toFixed(2)}
-                    </span>
-                  )}
-                  <p>{item.text}</p>
-                  <time>{item.date}</time>
-                </article>
-              ))}
+                  <article
+                    key={item.id}
+                    className={item.mine ? "mine" : "seller"}
+                  >
+                    {item.product && (
+                      <span className="agent-chat-product-tag">
+                        {item.product.name || item.product.product_code} · $
+                        {Number(item.product.sell_price || 0).toFixed(2)}
+                      </span>
+                    )}
+                    <p>{item.text}</p>
+                    <time>{item.date}</time>
+                  </article>
+                ))}
             </div>
-            <form className="agent-chat-thread-reply" onSubmit={sendThreadReply}>
+            <form
+              className="agent-chat-thread-reply"
+              onSubmit={sendThreadReply}
+            >
               <input
                 autoFocus
                 placeholder="Write a reply..."
                 value={threadReply}
                 onChange={(event) => setThreadReply(event.target.value)}
               />
-              <button type="submit" disabled={!threadReply.trim()}>Send</button>
+              <button type="submit" disabled={!threadReply.trim()}>
+                Send
+              </button>
             </form>
           </section>
         </div>
@@ -1358,7 +1521,11 @@ function AgentVirtualBuyers() {
     address: item.address || "",
     notes: item.notes || "",
     image: item.image_url || "",
-    added: new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    added: new Date(item.created_at).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
   });
   const loadBuyers = async () => {
     let { data, error } = await agentSupabase
@@ -1368,19 +1535,37 @@ function AgentVirtualBuyers() {
     if (error) return setBuyerError(`Could not load buyers: ${error.message}`);
     if (!data?.length) {
       let legacyBuyers = [];
-      try { legacyBuyers = JSON.parse(localStorage.getItem("agent_virtual_buyers") || "[]"); } catch { legacyBuyers = []; }
+      try {
+        legacyBuyers = JSON.parse(
+          localStorage.getItem("agent_virtual_buyers") || "[]",
+        );
+      } catch {
+        legacyBuyers = [];
+      }
       if (legacyBuyers.length) {
         const { data: auth } = await agentSupabase.auth.getUser();
-        const { error: importError } = await agentSupabase.from("virtual_buyers").insert(
-          legacyBuyers.map((buyer) => ({
-            agent_id: auth.user?.id, name: buyer.name, phone: buyer.phone || null,
-            email: buyer.email || null, country: buyer.country || null, state: buyer.state || null,
-            city: buyer.city || null, postal: buyer.postal || null, address: buyer.address || null,
-            notes: buyer.notes || null, image_url: buyer.image || buyer.buyer_image || null,
-          })),
-        );
+        const { error: importError } = await agentSupabase
+          .from("virtual_buyers")
+          .insert(
+            legacyBuyers.map((buyer) => ({
+              agent_id: auth.user?.id,
+              name: buyer.name,
+              phone: buyer.phone || null,
+              email: buyer.email || null,
+              country: buyer.country || null,
+              state: buyer.state || null,
+              city: buyer.city || null,
+              postal: buyer.postal || null,
+              address: buyer.address || null,
+              notes: buyer.notes || null,
+              image_url: buyer.image || buyer.buyer_image || null,
+            })),
+          );
         if (!importError) {
-          ({ data, error } = await agentSupabase.from("virtual_buyers").select("*").order("created_at", { ascending: false }));
+          ({ data, error } = await agentSupabase
+            .from("virtual_buyers")
+            .select("*")
+            .order("created_at", { ascending: false }));
           if (!error) localStorage.removeItem("agent_virtual_buyers");
         }
       }
@@ -1392,7 +1577,11 @@ function AgentVirtualBuyers() {
     loadBuyers();
     const channel = agentSupabase
       .channel("agent-virtual-buyers-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "virtual_buyers" }, loadBuyers)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "virtual_buyers" },
+        loadBuyers,
+      )
       .subscribe();
     return () => agentSupabase.removeChannel(channel);
   }, []);
@@ -1414,18 +1603,29 @@ function AgentVirtualBuyers() {
     setSavingBuyer(true);
     setBuyerError("");
     const payload = {
-      name: form.name.trim(), phone: form.phone.trim() || null, email: form.email.trim() || null,
-      country: form.country.trim() || null, state: form.state.trim() || null,
-      city: form.city.trim() || null, postal: form.postal.trim() || null,
-      address: form.address.trim() || null, notes: form.notes.trim() || null,
-      image_url: form.image || null, updated_at: new Date().toISOString(),
+      name: form.name.trim(),
+      phone: form.phone.trim() || null,
+      email: form.email.trim() || null,
+      country: form.country.trim() || null,
+      state: form.state.trim() || null,
+      city: form.city.trim() || null,
+      postal: form.postal.trim() || null,
+      address: form.address.trim() || null,
+      notes: form.notes.trim() || null,
+      image_url: form.image || null,
+      updated_at: new Date().toISOString(),
     };
     let error;
     if (editing === "new") {
       const { data: auth } = await agentSupabase.auth.getUser();
-      ({ error } = await agentSupabase.from("virtual_buyers").insert({ ...payload, agent_id: auth.user?.id }));
+      ({ error } = await agentSupabase
+        .from("virtual_buyers")
+        .insert({ ...payload, agent_id: auth.user?.id }));
     } else {
-      ({ error } = await agentSupabase.from("virtual_buyers").update(payload).eq("id", editing));
+      ({ error } = await agentSupabase
+        .from("virtual_buyers")
+        .update(payload)
+        .eq("id", editing));
     }
     setSavingBuyer(false);
     if (error) return setBuyerError(`Could not save buyer: ${error.message}`);
@@ -1434,7 +1634,10 @@ function AgentVirtualBuyers() {
     setEditing(null);
   };
   const deleteBuyer = async (id) => {
-    const { error } = await agentSupabase.from("virtual_buyers").delete().eq("id", id);
+    const { error } = await agentSupabase
+      .from("virtual_buyers")
+      .delete()
+      .eq("id", id);
     if (error) return setBuyerError(`Could not delete buyer: ${error.message}`);
     await loadBuyers();
     window.dispatchEvent(new CustomEvent("agent-virtual-buyers-changed"));
@@ -1444,20 +1647,24 @@ function AgentVirtualBuyers() {
   const prepareVirtualBuyerImage = (file) => {
     if (!file?.type?.startsWith("image/")) return;
     const reader = new FileReader();
-    reader.onload = () => setImageEditor({ src: reader.result, x: 50, y: 50, zoom: 1 });
+    reader.onload = () =>
+      setImageEditor({ src: reader.result, x: 50, y: 50, zoom: 1 });
     reader.readAsDataURL(file);
   };
   const applyVirtualBuyerImage = () => {
     if (!imageEditor) return;
     const image = new Image();
     image.onload = () => {
-      const size = Math.min(image.naturalWidth, image.naturalHeight) / imageEditor.zoom;
+      const size =
+        Math.min(image.naturalWidth, image.naturalHeight) / imageEditor.zoom;
       const sx = (image.naturalWidth - size) * (imageEditor.x / 100);
       const sy = (image.naturalHeight - size) * (imageEditor.y / 100);
       const canvas = document.createElement("canvas");
       canvas.width = 320;
       canvas.height = 320;
-      canvas.getContext("2d").drawImage(image, sx, sy, size, size, 0, 0, 320, 320);
+      canvas
+        .getContext("2d")
+        .drawImage(image, sx, sy, size, size, 0, 0, 320, 320);
       update("image", canvas.toDataURL("image/jpeg", 0.86));
       setImageEditor(null);
     };
@@ -1476,7 +1683,8 @@ function AgentVirtualBuyers() {
   };
   const pasteVirtualBuyerImage = (event) => {
     const file = Array.from(event.clipboardData?.items || [])
-      .find((item) => item.type.startsWith("image/"))?.getAsFile();
+      .find((item) => item.type.startsWith("image/"))
+      ?.getAsFile();
     if (file) {
       event.preventDefault();
       prepareVirtualBuyerImage(file);
@@ -1488,7 +1696,8 @@ function AgentVirtualBuyers() {
         <div>
           <h2>Virtual Buyers</h2>
           <p>
-            Create and manage buyer profiles used for seller orders and conversations.
+            Create and manage buyer profiles used for seller orders and
+            conversations.
           </p>
         </div>
         <button type="button" onClick={openAdd}>
@@ -1508,7 +1717,15 @@ function AgentVirtualBuyers() {
         {visible.map((item) => (
           <article key={item.id}>
             <div className="agent-buyer-info">
-              {item.image ? <img className="agent-virtual-buyer-avatar" src={item.image} alt={item.name} /> : <b>♙</b>}
+              {item.image ? (
+                <img
+                  className="agent-virtual-buyer-avatar"
+                  src={item.image}
+                  alt={item.name}
+                />
+              ) : (
+                <b>♙</b>
+              )}
               <div>
                 <h3>{item.name}</h3>
                 <p>⌕ &nbsp;{item.phone || "No phone"}</p>
@@ -1530,10 +1747,7 @@ function AgentVirtualBuyers() {
               <button type="button" onClick={() => openEdit(item)}>
                 ✎ Edit
               </button>
-              <button
-                type="button"
-                onClick={() => deleteBuyer(item.id)}
-              >
+              <button type="button" onClick={() => deleteBuyer(item.id)}>
                 ♲ Delete
               </button>
             </footer>
@@ -1567,8 +1781,15 @@ function AgentVirtualBuyers() {
                   onChange={(event) => update("name", event.target.value)}
                 />
               </label>
-              <div className="wide buyer-image-editor" onPaste={pasteVirtualBuyerImage}>
-                {form.image ? <img src={form.image} alt="Buyer profile" /> : <span>Buyer photo</span>}
+              <div
+                className="wide buyer-image-editor"
+                onPaste={pasteVirtualBuyerImage}
+              >
+                {form.image ? (
+                  <img src={form.image} alt="Buyer profile" />
+                ) : (
+                  <span>Buyer photo</span>
+                )}
                 <div>
                   <input
                     type="url"
@@ -1578,7 +1799,13 @@ function AgentVirtualBuyers() {
                   />
                   <label>
                     Upload or paste image
-                    <input type="file" accept="image/*" onChange={(event) => prepareVirtualBuyerImage(event.target.files?.[0])} />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) =>
+                        prepareVirtualBuyerImage(event.target.files?.[0])
+                      }
+                    />
                   </label>
                 </div>
               </div>
@@ -1599,12 +1826,18 @@ function AgentVirtualBuyers() {
                     const country = event.target.value;
                     const number = nationalPhone(form.phone, form.country);
                     const code = callingCodeFor(country);
-                    setForm((current) => ({ ...current, country, phone: number ? `${code} ${number}` : "" }));
+                    setForm((current) => ({
+                      ...current,
+                      country,
+                      phone: number ? `${code} ${number}` : "",
+                    }));
                   }}
                 >
                   <option value="">Select country</option>
                   {buyerCountries.map((item) => (
-                    <option key={item.name} value={item.name}>{item.name}</option>
+                    <option key={item.name} value={item.name}>
+                      {item.name}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -1616,10 +1849,15 @@ function AgentVirtualBuyers() {
                     type="tel"
                     inputMode="tel"
                     disabled={!form.country}
-                    placeholder={form.country ? "Phone number" : "Select country first"}
+                    placeholder={
+                      form.country ? "Phone number" : "Select country first"
+                    }
                     value={nationalPhone(form.phone, form.country)}
                     onChange={(event) => {
-                      const local = event.target.value.replace(/[^\d\s()-]/g, "");
+                      const local = event.target.value.replace(
+                        /[^\d\s()-]/g,
+                        "",
+                      );
                       const code = callingCodeFor(form.country);
                       update("phone", local.trim() ? `${code} ${local}` : "");
                     }}
@@ -1672,16 +1910,28 @@ function AgentVirtualBuyers() {
                 Cancel
               </button>
               <button type="submit" disabled={savingBuyer}>
-                {savingBuyer ? "Saving…" : `✓ ${editing === "new" ? "Add Buyer" : "Save Changes"}`}
+                {savingBuyer
+                  ? "Saving…"
+                  : `✓ ${editing === "new" ? "Add Buyer" : "Save Changes"}`}
               </button>
             </footer>
           </form>
         </div>
       )}
       {imageEditor && (
-        <div className="buyer-crop-overlay" role="dialog" aria-modal="true" aria-label="Adjust profile photo">
+        <div
+          className="buyer-crop-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Adjust profile photo"
+        >
           <section className="buyer-crop-dialog">
-            <header><h3>Adjust profile photo</h3><button type="button" onClick={() => setImageEditor(null)}>×</button></header>
+            <header>
+              <h3>Adjust profile photo</h3>
+              <button type="button" onClick={() => setImageEditor(null)}>
+                ×
+              </button>
+            </header>
             <div
               className="buyer-crop-preview"
               onPointerDown={(event) => {
@@ -1689,7 +1939,9 @@ function AgentVirtualBuyers() {
                 dragRef.current = { x: event.clientX, y: event.clientY };
               }}
               onPointerMove={moveImage}
-              onPointerUp={() => { dragRef.current = null; }}
+              onPointerUp={() => {
+                dragRef.current = null;
+              }}
             >
               <img
                 src={imageEditor.src}
@@ -1701,9 +1953,31 @@ function AgentVirtualBuyers() {
               />
               <i />
             </div>
-            <label>Zoom<input type="range" min="1" max="3" step="0.05" value={imageEditor.zoom} onChange={(event) => setImageEditor({ ...imageEditor, zoom: Number(event.target.value) })} /></label>
+            <label>
+              Zoom
+              <input
+                type="range"
+                min="1"
+                max="3"
+                step="0.05"
+                value={imageEditor.zoom}
+                onChange={(event) =>
+                  setImageEditor({
+                    ...imageEditor,
+                    zoom: Number(event.target.value),
+                  })
+                }
+              />
+            </label>
             <p>Drag the photo to choose what appears in the profile.</p>
-            <footer><button type="button" onClick={() => setImageEditor(null)}>Cancel</button><button type="button" onClick={applyVirtualBuyerImage}>Use photo</button></footer>
+            <footer>
+              <button type="button" onClick={() => setImageEditor(null)}>
+                Cancel
+              </button>
+              <button type="button" onClick={applyVirtualBuyerImage}>
+                Use photo
+              </button>
+            </footer>
           </section>
         </div>
       )}
@@ -1767,25 +2041,29 @@ const demoBuyerThreads = [
 
 function AgentBuyerMessages() {
   const buyerMarker = (buyer, product) =>
-    `virtual-buyer:${encodeURIComponent(JSON.stringify({
-      id: buyer.id,
-      name: buyer.name,
-      phone: buyer.phone,
-      image: buyer.image || buyer.buyer_image || "",
-      product: product
-        ? {
-            id: product.id,
-            name: product.name || product.product_code,
-            sku: product.sku || product.product_code,
-            price: Number(product.sell_price || 0),
-            image: product.image_url || "",
-          }
-        : undefined,
-    }))}`;
+    `virtual-buyer:${encodeURIComponent(
+      JSON.stringify({
+        id: buyer.id,
+        name: buyer.name,
+        phone: buyer.phone,
+        image: buyer.image || buyer.buyer_image || "",
+        product: product
+          ? {
+              id: product.id,
+              name: product.name || product.product_code,
+              sku: product.sku || product.product_code,
+              price: Number(product.sell_price || 0),
+              image: product.image_url || "",
+            }
+          : undefined,
+      }),
+    )}`;
   const readBuyerMarker = (value) => {
     if (!value?.startsWith("virtual-buyer:")) return null;
     try {
-      return JSON.parse(decodeURIComponent(value.slice("virtual-buyer:".length)));
+      return JSON.parse(
+        decodeURIComponent(value.slice("virtual-buyer:".length)),
+      );
     } catch {
       return null;
     }
@@ -1804,7 +2082,12 @@ function AgentBuyerMessages() {
   const [creating, setCreating] = useState(false);
   const [openThread, setOpenThread] = useState(null);
   const [reply, setReply] = useState("");
-  const [form, setForm] = useState({ buyer: "", seller: "", product: "", message: "" });
+  const [form, setForm] = useState({
+    buyer: "",
+    seller: "",
+    product: "",
+    message: "",
+  });
   const [productFilter, setProductFilter] = useState("ordered");
   const [sellerOptions, setSellerOptions] = useState([]);
   const [sendError, setSendError] = useState("");
@@ -1820,12 +2103,21 @@ function AgentBuyerMessages() {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) return setSendError(`Could not load buyers: ${error.message}`);
-      setBuyers((data || []).map((buyer) => ({
-        id: buyer.id, name: buyer.name, phone: buyer.phone || "", email: buyer.email || "",
-        country: buyer.country || "", state: buyer.state || "", city: buyer.city || "",
-        postal: buyer.postal || "", address: buyer.address || "", notes: buyer.notes || "",
-        image: buyer.image_url || "",
-      })));
+      setBuyers(
+        (data || []).map((buyer) => ({
+          id: buyer.id,
+          name: buyer.name,
+          phone: buyer.phone || "",
+          email: buyer.email || "",
+          country: buyer.country || "",
+          state: buyer.state || "",
+          city: buyer.city || "",
+          postal: buyer.postal || "",
+          address: buyer.address || "",
+          notes: buyer.notes || "",
+          image: buyer.image_url || "",
+        })),
+      );
     };
     refreshBuyers();
     window.addEventListener("agent-virtual-buyers-changed", refreshBuyers);
@@ -1860,7 +2152,9 @@ function AgentBuyerMessages() {
       const [{ data: showcaseRows }, { data: orderRows }] = await Promise.all([
         agentSupabase
           .from("showcase_products")
-          .select("on_shelf,products(id,name,product_code,sku,sell_price,image_url)")
+          .select(
+            "on_shelf,products(id,name,product_code,sku,sell_price,image_url)",
+          )
           .eq("seller_id", form.seller)
           .eq("on_shelf", true),
         agentSupabase
@@ -1870,16 +2164,22 @@ function AgentBuyerMessages() {
           .eq("customer_name", buyer?.name || ""),
       ]);
       if (!active) return;
-      const orderedNames = new Set((orderRows || []).map((row) => row.product_name));
+      const orderedNames = new Set(
+        (orderRows || []).map((row) => row.product_name),
+      );
       setAvailableProducts(
-        (showcaseRows || []).filter((row) => row.products).map((row) => ({
-          ...row.products,
-          ordered: orderedNames.has(row.products.name),
-        })),
+        (showcaseRows || [])
+          .filter((row) => row.products)
+          .map((row) => ({
+            ...row.products,
+            ordered: orderedNames.has(row.products.name),
+          })),
       );
     };
     loadProducts();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [form.seller, form.buyer, buyers]);
   useEffect(() => {
     let active = true;
@@ -1921,12 +2221,17 @@ function AgentBuyerMessages() {
     thread.sellerId
       ? liveMessages.filter((message) => {
           const participantsMatch =
-            (message.sender_id === agentUserId && message.recipient_id === thread.sellerId) ||
-            (message.sender_id === thread.sellerId && message.recipient_id === agentUserId);
+            (message.sender_id === agentUserId &&
+              message.recipient_id === thread.sellerId) ||
+            (message.sender_id === thread.sellerId &&
+              message.recipient_id === agentUserId);
           const buyer = readBuyerMarker(message.image_url);
-          return participantsMatch &&
+          return (
+            participantsMatch &&
             String(buyer?.id) === String(thread.buyerId || thread.buyer) &&
-            String(buyer?.product?.id || "general") === String(thread.productId || "general");
+            String(buyer?.product?.id || "general") ===
+              String(thread.productId || "general")
+          );
         })
       : [];
   const visible = threads
@@ -1935,7 +2240,8 @@ function AgentBuyerMessages() {
       const latest = conversation.at(-1);
       return {
         ...item,
-        latestMessage: latest?.body || item.replies.at(-1)?.text || item.message,
+        latestMessage:
+          latest?.body || item.replies.at(-1)?.text || item.message,
         latestDate: latest?.created_at || item.date,
         latestDateLabel: latest?.created_at
           ? new Date(latest.created_at).toLocaleString()
@@ -1943,8 +2249,11 @@ function AgentBuyerMessages() {
       };
     })
     .filter((item) =>
-      [item.buyer, item.seller, item.latestMessage, item.product].some((value) =>
-        String(value || "").toLowerCase().includes(search.toLowerCase()),
+      [item.buyer, item.seller, item.latestMessage, item.product].some(
+        (value) =>
+          String(value || "")
+            .toLowerCase()
+            .includes(search.toLowerCase()),
       ),
     )
     .sort((a, b) => new Date(b.latestDate) - new Date(a.latestDate));
@@ -1962,11 +2271,14 @@ function AgentBuyerMessages() {
     event.preventDefault();
     const seller = sellerOptions.find((item) => item.id === form.seller);
     const buyer = buyers.find((item) => String(item.id) === form.buyer);
-    const product = availableProducts.find((item) => String(item.id) === form.product);
+    const product = availableProducts.find(
+      (item) => String(item.id) === form.product,
+    );
     if (!seller || !buyer || !product) return;
     setSending(true);
     setSendError("");
-    const { data: authData, error: authError } = await agentSupabase.auth.getUser();
+    const { data: authData, error: authError } =
+      await agentSupabase.auth.getUser();
     if (authError || !authData.user) {
       setSendError(authError?.message || "Your agent session has expired.");
       setSending(false);
@@ -1989,32 +2301,34 @@ function AgentBuyerMessages() {
       return;
     }
     setLiveMessages((current) =>
-      current.some((item) => item.id === saved.id) ? current : [...current, saved],
+      current.some((item) => item.id === saved.id)
+        ? current
+        : [...current, saved],
     );
     const nextThread = {
-        id: saved.id,
-        buyer: buyer.name,
-        buyerId: buyer?.id,
-        phone: buyer?.phone || "•••",
-        seller: seller.display_name || seller.email,
-        sellerId: seller.id,
-        message: form.message.trim(),
-        productId: product.id,
-        product: product.name || product.product_code,
-        sku: product.sku || product.product_code,
-        price: Number(product.sell_price || 0),
-        image:
-          "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=160&q=80",
-        date: new Date(saved.created_at).toLocaleString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        }),
-        unread: true,
-        replies: [],
-      };
+      id: saved.id,
+      buyer: buyer.name,
+      buyerId: buyer?.id,
+      phone: buyer?.phone || "•••",
+      seller: seller.display_name || seller.email,
+      sellerId: seller.id,
+      message: form.message.trim(),
+      productId: product.id,
+      product: product.name || product.product_code,
+      sku: product.sku || product.product_code,
+      price: Number(product.sell_price || 0),
+      image:
+        "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=160&q=80",
+      date: new Date(saved.created_at).toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+      unread: true,
+      replies: [],
+    };
     const existingThread = threads.find(
       (item) =>
         item.sellerId === seller.id &&
@@ -2052,8 +2366,18 @@ function AgentBuyerMessages() {
           channel: "buyer",
           body: reply.trim(),
           image_url: buyerMarker(
-            { id: thread.buyerId || thread.buyer, name: thread.buyer, phone: thread.phone },
-            { id: thread.productId, name: thread.product, sku: thread.sku, sell_price: thread.price, image_url: thread.image },
+            {
+              id: thread.buyerId || thread.buyer,
+              name: thread.buyer,
+              phone: thread.phone,
+            },
+            {
+              id: thread.productId,
+              name: thread.product,
+              sku: thread.sku,
+              sell_price: thread.price,
+              image_url: thread.image,
+            },
           ),
         })
         .select("*")
@@ -2063,7 +2387,9 @@ function AgentBuyerMessages() {
         return;
       }
       setLiveMessages((current) =>
-        current.some((item) => item.id === saved.id) ? current : [...current, saved],
+        current.some((item) => item.id === saved.id)
+          ? current
+          : [...current, saved],
       );
     }
     persist(
@@ -2087,17 +2413,21 @@ function AgentBuyerMessages() {
   };
   const activeThread = threads.find((item) => item.id === openThread);
   const activeMessages = activeThread?.sellerId
-    ? liveMessages.filter(
-        (item) => {
-          const participantsMatch =
-            (item.sender_id === agentUserId && item.recipient_id === activeThread.sellerId) ||
-            (item.sender_id === activeThread.sellerId && item.recipient_id === agentUserId);
-          const buyer = readBuyerMarker(item.image_url);
-          return participantsMatch &&
-            String(buyer?.id) === String(activeThread.buyerId || activeThread.buyer) &&
-            String(buyer?.product?.id || "general") === String(activeThread.productId || "general");
-        },
-      )
+    ? liveMessages.filter((item) => {
+        const participantsMatch =
+          (item.sender_id === agentUserId &&
+            item.recipient_id === activeThread.sellerId) ||
+          (item.sender_id === activeThread.sellerId &&
+            item.recipient_id === agentUserId);
+        const buyer = readBuyerMarker(item.image_url);
+        return (
+          participantsMatch &&
+          String(buyer?.id) ===
+            String(activeThread.buyerId || activeThread.buyer) &&
+          String(buyer?.product?.id || "general") ===
+            String(activeThread.productId || "general")
+        );
+      })
     : [];
   return (
     <div className="agent-buyer-messages-page">
@@ -2149,7 +2479,10 @@ function AgentBuyerMessages() {
             <footer>
               <time>{item.latestDateLabel}</time>
               <button type="button" onClick={() => viewThread(item.id)}>
-                ▢ {messagesForThread(item).length > 1 || item.replies.length ? "View Thread" : "Open Chat"}
+                ▢{" "}
+                {messagesForThread(item).length > 1 || item.replies.length
+                  ? "View Thread"
+                  : "Open Chat"}
               </button>
             </footer>
           </article>
@@ -2236,15 +2569,20 @@ function AgentBuyerMessages() {
               <select
                 required
                 value={form.product}
-                onChange={(event) => setForm({ ...form, product: event.target.value })}
+                onChange={(event) =>
+                  setForm({ ...form, product: event.target.value })
+                }
                 disabled={!form.buyer || !form.seller}
               >
                 <option value="">— Select product —</option>
                 {availableProducts
-                  .filter((product) => productFilter === "all" || product.ordered)
+                  .filter(
+                    (product) => productFilter === "all" || product.ordered,
+                  )
                   .map((product) => (
                     <option key={product.id} value={product.id}>
-                      {product.name} · ${Number(product.sell_price || 0).toFixed(2)}
+                      {product.name} · $
+                      {Number(product.sell_price || 0).toFixed(2)}
                     </option>
                   ))}
               </select>
@@ -2266,7 +2604,13 @@ function AgentBuyerMessages() {
               </button>
               <button
                 type="submit"
-                disabled={sending || !form.buyer || !form.seller || !form.product || !form.message.trim()}
+                disabled={
+                  sending ||
+                  !form.buyer ||
+                  !form.seller ||
+                  !form.product ||
+                  !form.message.trim()
+                }
               >
                 {sending ? "Sending…" : "Send Message"}
               </button>
@@ -2294,26 +2638,39 @@ function AgentBuyerMessages() {
               </button>
             </header>
             <div className="agent-buyer-chat-stream">
-              {activeMessages.length ? activeMessages.map((item) => (
-                <article
-                  className={item.sender_id === agentUserId ? "mine" : "theirs"}
-                  key={item.id}
-                  style={{
-                    justifySelf: item.sender_id === agentUserId ? "end" : "start",
-                    background: item.sender_id === agentUserId ? "#dff8f4" : "#f1f4f6",
-                  }}
-                >
-                  <p>{item.body}</p>
-                  <time>{new Date(item.created_at).toLocaleString()}</time>
-                </article>
-              )) : (
+              {activeMessages.length ? (
+                activeMessages.map((item) => (
+                  <article
+                    className={
+                      item.sender_id === agentUserId ? "mine" : "theirs"
+                    }
+                    key={item.id}
+                    style={{
+                      justifySelf:
+                        item.sender_id === agentUserId ? "end" : "start",
+                      background:
+                        item.sender_id === agentUserId ? "#dff8f4" : "#f1f4f6",
+                    }}
+                  >
+                    <p>{item.body}</p>
+                    <time>{new Date(item.created_at).toLocaleString()}</time>
+                  </article>
+                ))
+              ) : (
                 <>
-                  <article className="mine" style={{ justifySelf: "end", background: "#dff8f4" }}>
+                  <article
+                    className="mine"
+                    style={{ justifySelf: "end", background: "#dff8f4" }}
+                  >
                     <p>{activeThread.message}</p>
                     <time>{activeThread.date}</time>
                   </article>
                   {activeThread.replies.map((item, index) => (
-                    <article className="mine" style={{ justifySelf: "end", background: "#dff8f4" }} key={`${item.date}-${index}`}>
+                    <article
+                      className="mine"
+                      style={{ justifySelf: "end", background: "#dff8f4" }}
+                      key={`${item.date}-${index}`}
+                    >
                       <p>{item.text}</p>
                       <time>{item.date}</time>
                     </article>
@@ -2863,6 +3220,36 @@ function AgentGeneralConfig() {
     }
   });
   const [saved, setSaved] = useState(false);
+  const [avatar, setAvatar] = useState("");
+  const [avatarError, setAvatarError] = useState("");
+  const [avatarBusy, setAvatarBusy] = useState(false);
+
+  useEffect(() => {
+    agentSupabase.auth.getUser().then(({ data }) => {
+      setAvatar(data?.user?.user_metadata?.avatar_url || "");
+    });
+  }, []);
+
+  const uploadAvatar = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setAvatarBusy(true);
+    setAvatarError("");
+    try {
+      const dataUrl = await resizeImageToDataUrl(file);
+      const { error } = await agentSupabase.auth.updateUser({
+        data: { avatar_url: dataUrl },
+      });
+      if (error) throw error;
+      setAvatar(dataUrl);
+      window.dispatchEvent(new CustomEvent("agent-avatar-changed"));
+    } catch (err) {
+      setAvatarError(err.message || "Could not update photo.");
+    }
+    setAvatarBusy(false);
+  };
+
   const update = (field, value) =>
     setConfig((current) => ({ ...current, [field]: value }));
   const save = (event) => {
@@ -2881,6 +3268,23 @@ function AgentGeneralConfig() {
       <form onSubmit={save}>
         <section className="agent-general-card">
           <h3>Profile</h3>
+          <div className="agent-avatar-row">
+            {avatar ? (
+              <img className="agent-avatar-preview" src={avatar} alt="" />
+            ) : (
+              <div className="agent-avatar-placeholder">K</div>
+            )}
+            <label className="agent-avatar-upload">
+              {avatarBusy ? "Uploading…" : "Change photo"}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={uploadAvatar}
+                hidden
+              />
+            </label>
+          </div>
+          {avatarError && <p className="account-notice">{avatarError}</p>}
           <div className="agent-general-grid">
             <label>
               Display name *
@@ -4284,7 +4688,9 @@ function AgentMerchantList() {
       await Promise.all([
         agentSupabase
           .from("profiles")
-          .select("id,email,display_name,created_at,credit_score,allow_login,shop_locked,balance,wallet_balance")
+          .select(
+            "id,email,display_name,created_at,credit_score,allow_login,shop_locked,avatar_url",
+          )
           .eq("role", "seller")
           .order("created_at", { ascending: false }),
         fetchWalletTransactions(agentSupabase),
@@ -4295,7 +4701,9 @@ function AgentMerchantList() {
     if (profileRes.error) {
       const retry = await agentSupabase
         .from("profiles")
-        .select("id,email,display_name,created_at,credit_score,allow_login,shop_locked")
+        .select(
+          "id,email,display_name,created_at,credit_score,allow_login,shop_locked,avatar_url",
+        )
         .eq("role", "seller")
         .order("created_at", { ascending: false });
       if (!retry.error) profileRes.data = retry.data;
@@ -4317,27 +4725,26 @@ function AgentMerchantList() {
       setMerchants(
         (profileRes.data || []).map((profile) => {
           const id = String(profile.id);
-          const total = balances.has(id)
-            ? balances.get(id)
-            : parseMoney(profile.balance ?? profile.wallet_balance);
+          const total = balances.has(id) ? balances.get(id) : 0;
           return {
-          userId: profile.id,
-          id: profile.id.slice(0, 8).toUpperCase(),
-          initial: (profile.display_name ||
-            profile.email ||
-            "S")[0].toUpperCase(),
-          name: profile.display_name || profile.email.split("@")[0],
-          email: profile.email,
-          balance: formatUsd(total),
-          frozen: `${formatUsd(frozen.get(id) || 0)} frozen`,
-          credit: profile.credit_score ?? 100,
-          status: profile.allow_login === false ? "Suspended" : "Active",
-          shopLocked: profile.shop_locked === true,
-          joined: new Date(profile.created_at).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
+            userId: profile.id,
+            id: profile.id.slice(0, 8).toUpperCase(),
+            avatar: profile.avatar_url || "",
+            initial: (profile.display_name ||
+              profile.email ||
+              "S")[0].toUpperCase(),
+            name: profile.display_name || profile.email.split("@")[0],
+            email: profile.email,
+            balance: formatUsd(total),
+            frozen: `${formatUsd(frozen.get(id) || 0)} frozen`,
+            credit: profile.credit_score ?? 100,
+            status: profile.allow_login === false ? "Suspended" : "Active",
+            shopLocked: profile.shop_locked === true,
+            joined: new Date(profile.created_at).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }),
           };
         }),
       );
@@ -4356,7 +4763,11 @@ function AgentMerchantList() {
         ),
     )
     .sort((a, b) =>
-      a.userId === recentMerchantId ? -1 : b.userId === recentMerchantId ? 1 : 0,
+      a.userId === recentMerchantId
+        ? -1
+        : b.userId === recentMerchantId
+          ? 1
+          : 0,
     );
   const refreshChangedMerchant = () => {
     if (modal?.merchant?.userId) setRecentMerchantId(modal.merchant.userId);
@@ -4437,7 +4848,15 @@ function AgentMerchantList() {
           <article key={merchant.userId}>
             <code>{merchant.id}</code>
             <div className="agent-merchant-name">
-              <b>{merchant.initial}</b>
+              {merchant.avatar ? (
+                <img
+                  className="agent-merchant-avatar"
+                  src={merchant.avatar}
+                  alt=""
+                />
+              ) : (
+                <b>{merchant.initial}</b>
+              )}
               <strong>{merchant.name}</strong>
             </div>
             <span>{merchant.email}</span>

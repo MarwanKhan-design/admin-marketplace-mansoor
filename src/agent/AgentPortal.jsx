@@ -3,6 +3,8 @@ import { agentSupabase } from "../shared/supabase";
 import MerchantFinanceModals from "../shared/MerchantFinanceModals";
 import MerchantControlModals from "../shared/MerchantControlModals";
 import MerchantActivityModals from "../shared/MerchantActivityModals";
+import { readImageFile } from "../shared/avatar";
+import AvatarCropper from "../shared/AvatarCropper";
 import {
   merchantActionKind,
   normalizeMerchantAction,
@@ -1715,8 +1717,8 @@ function AgentVirtualBuyers() {
       {buyerError && <p className="agent-buyers-error">{buyerError}</p>}
       <section className="agent-buyers-grid">
         {visible.map((item) => (
-          <article key={item.id}>
-            <div className="agent-buyer-info">
+          <article key={item.id} className="buyer-card">
+            <div className="buyer-card-body">
               {item.image ? (
                 <img
                   className="agent-virtual-buyer-avatar"
@@ -1724,14 +1726,20 @@ function AgentVirtualBuyers() {
                   alt={item.name}
                 />
               ) : (
-                <b>♙</b>
+                <span className="buyer-card-avatar">☺</span>
               )}
-              <div>
+              <div className="buyer-card-info">
                 <h3>{item.name}</h3>
-                <p>⌕ &nbsp;{item.phone || "No phone"}</p>
-                <p>✉ &nbsp;{item.email || "No email"}</p>
                 <p>
-                  ⌖ &nbsp;
+                  <i>☏</i>
+                  {item.phone || "No phone"}
+                </p>
+                <p>
+                  <i>✉</i>
+                  {item.email || "No email"}
+                </p>
+                <p>
+                  <i>⌖</i>
                   {[item.city, item.state, item.country]
                     .filter(Boolean)
                     .join(", ") || "No location"}
@@ -1739,15 +1747,26 @@ function AgentVirtualBuyers() {
                 <p>
                   {item.address || "No shipping address"} {item.postal}
                 </p>
-                <p>▤ &nbsp;{item.notes || "No notes"}</p>
+                <p>
+                  <i>▤</i>
+                  {item.notes || "No notes"}
+                </p>
                 <small>Added {item.added}</small>
               </div>
             </div>
-            <footer>
-              <button type="button" onClick={() => openEdit(item)}>
+            <footer className="buyer-card-actions">
+              <button
+                type="button"
+                className="buyer-card-edit"
+                onClick={() => openEdit(item)}
+              >
                 ✎ Edit
               </button>
-              <button type="button" onClick={() => deleteBuyer(item.id)}>
+              <button
+                type="button"
+                className="buyer-card-delete"
+                onClick={() => deleteBuyer(item.id)}
+              >
                 ♲ Delete
               </button>
             </footer>
@@ -3223,6 +3242,7 @@ function AgentGeneralConfig() {
   const [avatar, setAvatar] = useState("");
   const [avatarError, setAvatarError] = useState("");
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [cropSource, setCropSource] = useState("");
 
   useEffect(() => {
     agentSupabase.auth.getUser().then(({ data }) => {
@@ -3230,19 +3250,39 @@ function AgentGeneralConfig() {
     });
   }, []);
 
-  const uploadAvatar = async (event) => {
+  const pickAvatarFile = async (file) => {
+    if (!file) return;
+    setAvatarError("");
+    try {
+      setCropSource(await readImageFile(file));
+    } catch (err) {
+      setAvatarError(err.message || "Could not read that image.");
+    }
+  };
+  const onAvatarFileChange = (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    pickAvatarFile(file);
+  };
+  const onAvatarPaste = (event) => {
+    const file = Array.from(event.clipboardData?.items || [])
+      .find((item) => item.type.startsWith("image/"))
+      ?.getAsFile();
+    if (file) {
+      event.preventDefault();
+      pickAvatarFile(file);
+    }
+  };
+  const confirmAvatarCrop = async (croppedDataUrl) => {
+    setCropSource("");
     setAvatarBusy(true);
     setAvatarError("");
     try {
-      const dataUrl = await resizeImageToDataUrl(file);
       const { error } = await agentSupabase.auth.updateUser({
-        data: { avatar_url: dataUrl },
+        data: { avatar_url: croppedDataUrl },
       });
       if (error) throw error;
-      setAvatar(dataUrl);
+      setAvatar(croppedDataUrl);
       window.dispatchEvent(new CustomEvent("agent-avatar-changed"));
     } catch (err) {
       setAvatarError(err.message || "Could not update photo.");
@@ -3268,7 +3308,11 @@ function AgentGeneralConfig() {
       <form onSubmit={save}>
         <section className="agent-general-card">
           <h3>Profile</h3>
-          <div className="agent-avatar-row">
+          <div
+            className="agent-avatar-row"
+            tabIndex={0}
+            onPaste={onAvatarPaste}
+          >
             {avatar ? (
               <img className="agent-avatar-preview" src={avatar} alt="" />
             ) : (
@@ -3279,12 +3323,20 @@ function AgentGeneralConfig() {
               <input
                 type="file"
                 accept="image/*"
-                onChange={uploadAvatar}
+                onChange={onAvatarFileChange}
                 hidden
               />
             </label>
+            <small className="agent-avatar-hint">or click here and paste</small>
           </div>
           {avatarError && <p className="account-notice">{avatarError}</p>}
+          {cropSource && (
+            <AvatarCropper
+              src={cropSource}
+              onCancel={() => setCropSource("")}
+              onConfirm={confirmAvatarCrop}
+            />
+          )}
           <div className="agent-general-grid">
             <label>
               Display name *

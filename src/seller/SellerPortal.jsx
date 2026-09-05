@@ -9,7 +9,8 @@ import SellerInvite from './SellerInvite';
 import SellerFeedback from './SellerFeedback';
 import SellerService from './SellerService';
 import { adminSupabase, agentSupabase, sellerSupabase } from '../shared/supabase';
-import { resizeImageToDataUrl } from '../shared/avatar';
+import { readImageFile } from '../shared/avatar';
+import AvatarCropper from '../shared/AvatarCropper';
 
 const periods = ['Today', 'This Week', 'This Month', 'Total'];
 const faqs = [
@@ -35,21 +36,43 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
   const [portalClient, setPortalClient] = useState(sellerSupabase);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarError, setAvatarError] = useState('');
+  const [cropSource, setCropSource] = useState('');
 
-  const uploadShopAvatar = async (event) => {
+  const pickShopAvatarFile = async (file) => {
+    if (!file) return;
+    setAvatarError('');
+    try {
+      setCropSource(await readImageFile(file));
+    } catch (err) {
+      setAvatarError(err.message || 'Could not read that image.');
+    }
+  };
+  const uploadShopAvatar = (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file || !sellerId) return;
+    pickShopAvatarFile(file);
+  };
+  const pasteShopAvatar = (event) => {
+    const file = Array.from(event.clipboardData?.items || [])
+      .find((item) => item.type.startsWith('image/'))
+      ?.getAsFile();
+    if (file) {
+      event.preventDefault();
+      pickShopAvatarFile(file);
+    }
+  };
+  const confirmShopAvatarCrop = async (croppedDataUrl) => {
+    setCropSource('');
+    if (!sellerId) return;
     setAvatarBusy(true);
     setAvatarError('');
     try {
-      const dataUrl = await resizeImageToDataUrl(file);
       const { error } = await portalClient
         .from('profiles')
-        .update({ avatar_url: dataUrl })
+        .update({ avatar_url: croppedDataUrl })
         .eq('id', sellerId);
       if (error) throw error;
-      setProfile((current) => ({ ...current, avatar_url: dataUrl }));
+      setProfile((current) => ({ ...current, avatar_url: croppedDataUrl }));
     } catch (err) {
       setAvatarError(err.message || 'Could not update photo.');
     }
@@ -114,7 +137,11 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
       <div className="seller-center-shell">
         <header className="seller-center-topbar"><button type="button" onClick={onLogout} aria-label="Sign out">↪</button><h1>MarketHub Seller Center</h1><div><button type="button" onClick={() => setSellerView('messages')} aria-label="Messages">◌</button><button type="button" aria-label="Language">◎</button></div></header>
         <section className="seller-profile-row">
-          <div className="seller-avatar-wrap">
+          <div
+            className="seller-avatar-wrap"
+            tabIndex={previewMerchant ? -1 : 0}
+            onPaste={previewMerchant ? undefined : pasteShopAvatar}
+          >
             {profile?.avatar_url ? (
               <img className="seller-avatar-photo" src={profile.avatar_url} alt="" />
             ) : (
@@ -131,6 +158,13 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
           <button className="seller-wallet-btn" type="button" onClick={() => setSellerView('wallet')}>Wallet</button>
         </section>
         {avatarError && <p className="seller-avatar-error">{avatarError}</p>}
+        {cropSource && (
+          <AvatarCropper
+            src={cropSource}
+            onCancel={() => setCropSource('')}
+            onConfirm={confirmShopAvatarCrop}
+          />
+        )}
         <nav className="seller-primary-links"><button type="button" onClick={() => setSellerView('showcase')}>▣ <strong>Showcase</strong></button><button type="button" onClick={() => setSellerView('orders')}>▤ <strong>Orders</strong></button></nav>
         <section className="seller-traffic-banner"><strong>Market<span>·</span><br />Hub</strong><div>Grow with <b>Marketplace Traffic</b><br /><em>Demo</em> product exposure</div><i /></section>
         <div className="seller-period-tabs">{periods.map((item) => <button type="button" key={item} className={period === item ? 'active' : ''} onClick={() => setPeriod(item)}>{item}</button>)}</div>

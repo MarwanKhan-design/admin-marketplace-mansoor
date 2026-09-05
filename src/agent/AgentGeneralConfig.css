@@ -30,3 +30,4 @@
   background: #eee; font-weight: 600;
 }
 .agent-avatar-upload { cursor: pointer; font-size: 13px; color: #2563eb; }
+.agent-avatar-hint { display: block; margin-top: 4px; color: #888; font-size: 11px; }

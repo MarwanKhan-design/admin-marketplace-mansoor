@@ -9,6 +9,7 @@ import SellerInvite from './SellerInvite';
 import SellerFeedback from './SellerFeedback';
 import SellerService from './SellerService';
 import { adminSupabase, agentSupabase, sellerSupabase } from '../shared/supabase';
+import { resizeImageToDataUrl } from '../shared/avatar';
 
 const periods = ['Today', 'This Week', 'This Month', 'Total'];
 const faqs = [
@@ -32,6 +33,28 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
   const [orders, setOrders] = useState([]);
   const [clickCount, setClickCount] = useState(0);
   const [portalClient, setPortalClient] = useState(sellerSupabase);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+
+  const uploadShopAvatar = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !sellerId) return;
+    setAvatarBusy(true);
+    setAvatarError('');
+    try {
+      const dataUrl = await resizeImageToDataUrl(file);
+      const { error } = await portalClient
+        .from('profiles')
+        .update({ avatar_url: dataUrl })
+        .eq('id', sellerId);
+      if (error) throw error;
+      setProfile((current) => ({ ...current, avatar_url: dataUrl }));
+    } catch (err) {
+      setAvatarError(err.message || 'Could not update photo.');
+    }
+    setAvatarBusy(false);
+  };
 
   const resolvePortalClient = async () => {
     if (!previewMerchant) return sellerSupabase;
@@ -90,7 +113,24 @@ export default function SellerPortal({ onLogout, previewMerchant = null }) {
     <main className="seller-center-page">
       <div className="seller-center-shell">
         <header className="seller-center-topbar"><button type="button" onClick={onLogout} aria-label="Sign out">↪</button><h1>MarketHub Seller Center</h1><div><button type="button" onClick={() => setSellerView('messages')} aria-label="Messages">◌</button><button type="button" aria-label="Language">◎</button></div></header>
-        <section className="seller-profile-row"><div className="seller-avatar">{shopName.charAt(0).toUpperCase()}</div><div className="seller-profile-copy"><div><h2>{shopName}</h2><button type="button" disabled={nameChanged} onClick={() => { setShopNameDraft(shopName); setShowNameModal(true); }} aria-label="Edit shop name">✎</button></div><span>Credit Score {profile?.credit_score ?? 100}</span></div><button className="seller-wallet-btn" type="button" onClick={() => setSellerView('wallet')}>Wallet</button></section>
+        <section className="seller-profile-row">
+          <div className="seller-avatar-wrap">
+            {profile?.avatar_url ? (
+              <img className="seller-avatar-photo" src={profile.avatar_url} alt="" />
+            ) : (
+              <div className="seller-avatar">{shopName.charAt(0).toUpperCase()}</div>
+            )}
+            {!previewMerchant && (
+              <label className="seller-avatar-edit" aria-label="Change shop photo">
+                {avatarBusy ? '…' : '✎'}
+                <input type="file" accept="image/*" onChange={uploadShopAvatar} hidden />
+              </label>
+            )}
+          </div>
+          <div className="seller-profile-copy"><div><h2>{shopName}</h2><button type="button" disabled={nameChanged} onClick={() => { setShopNameDraft(shopName); setShowNameModal(true); }} aria-label="Edit shop name">✎</button></div><span>Credit Score {profile?.credit_score ?? 100}</span></div>
+          <button className="seller-wallet-btn" type="button" onClick={() => setSellerView('wallet')}>Wallet</button>
+        </section>
+        {avatarError && <p className="seller-avatar-error">{avatarError}</p>}
         <nav className="seller-primary-links"><button type="button" onClick={() => setSellerView('showcase')}>▣ <strong>Showcase</strong></button><button type="button" onClick={() => setSellerView('orders')}>▤ <strong>Orders</strong></button></nav>
         <section className="seller-traffic-banner"><strong>Market<span>·</span><br />Hub</strong><div>Grow with <b>Marketplace Traffic</b><br /><em>Demo</em> product exposure</div><i /></section>
         <div className="seller-period-tabs">{periods.map((item) => <button type="button" key={item} className={period === item ? 'active' : ''} onClick={() => setPeriod(item)}>{item}</button>)}</div>
